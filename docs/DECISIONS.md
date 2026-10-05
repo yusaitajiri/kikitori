@@ -283,7 +283,7 @@ found a reason to deviate.
   it. 選択 picks several recordings to move to the Recycle Bin at once (`delete_sessions`), with
   quick picks for all and for the greyed short and empty ones.
 - **A finished session's buttons**: コピー, 書き出し, which opens a dialog to pick Markdown, PDF
-  or Typst (the compact window, too small for it, shows a menu), the ⋯ menu (「Claude用にコピー」,
+  or Typst (the compact window, too small for it, shows a menu), the ⋯ menu (「Agent用にコピー」,
   「Markdownでコピー」, フォルダを開く), and 「新しい録音」.
 - **Less text.** Choices have no descriptions under them (the source field is one line,
   「会話として録音」 shows only the mic's name, the export dialog lists formats only, settings

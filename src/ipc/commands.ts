@@ -38,7 +38,7 @@ export const commands = {
   switchToSystem: () => invoke<void>("switch_to_system"),
   takeScreenshot: () => invoke<{ id: string; tMs: number }>("take_screenshot"),
   getSession: (sessionId: string) => invoke<SessionView>("get_session", { sessionId }),
-  copyTranscript: (sessionId: string, format: "plain" | "claude" | "markdown") =>
+  copyTranscript: (sessionId: string, format: "plain" | "agent" | "markdown") =>
     invoke<{ chars: number }>("copy_transcript", { sessionId, format }),
   /**
    * Each export asks where to save it; `null` when the dialog is cancelled. Markdown without

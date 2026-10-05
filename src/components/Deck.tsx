@@ -738,7 +738,7 @@ function ReviewRow({ compact, sessionId, folder, onNew }: { compact: boolean; se
   const setExportFor = useUi((s) => s.setExportFor);
   const more = async () => {
     const entries: MenuEntry[] = [
-      { text: t("copyForClaude"), action: () => void copy("claude", sessionId) },
+      { text: t("copyForAgent"), action: () => void copy("agent", sessionId) },
       { text: t("copyMarkdown"), action: () => void copy("markdown", sessionId) },
       "separator",
       { text: t("openFolder"), enabled: !!folder, action: () => void openFolder(folder) },

@@ -9,7 +9,7 @@
 
 Kikitori is a Windows app that transcribes meetings, lectures and videos as they happen, **entirely on your PC**.
 It tells an app's audio (Zoom, Teams and so on) apart from your microphone, labelling the lines Others and Me, and drops screenshots into the transcript at the moment you take them.
-Afterwards, save it as Markdown or PDF, or use Copy for Claude to ask for a summary.
+Afterwards, save it as Markdown or PDF, or use Copy for AI agents to ask an AI for a summary.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
@@ -50,7 +50,7 @@ Before you record anyone, let them know.
 | Start or stop recording | **Start** / **Stop** |
 | Choose what to transcribe | **Source**: an app (Zoom and so on), All system audio, or Microphone only. Turn on **Record a conversation** to add your own voice as Me |
 | Add a screenshot | **Screenshot** while recording |
-| Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for Claude |
+| Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for AI agents |
 | See past recordings | **History** in the title bar. You can also fix or delete lines there |
 
 - Recordings are saved automatically in `Documents\Kikitori`, one folder per recording named by date and title (`transcript.md` and images).

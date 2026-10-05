@@ -131,7 +131,7 @@ export function newRecording() {
   useUi.getState().go("main");
 }
 
-export async function copy(format: "plain" | "claude" | "markdown", id = currentSessionId()) {
+export async function copy(format: "plain" | "agent" | "markdown", id = currentSessionId()) {
   if (!id) return;
   try {
     await commands.copyTranscript(id, format);

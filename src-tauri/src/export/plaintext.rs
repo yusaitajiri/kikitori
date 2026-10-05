@@ -1,4 +1,4 @@
-//! Clipboard formats: plain text and 「Claude用にコピー」 (section 11).
+//! Clipboard formats: plain text and 「Agent用にコピー」 (section 11).
 
 use super::{Block, ExportOptions, blocks, clock, image_number, marker_text, prompts};
 use crate::session::model::{MarkerKind, Session, TimelineItem};
@@ -57,7 +57,7 @@ pub fn plain(session: &Session, opts: &ExportOptions) -> String {
 }
 
 /// Cleanup prompt followed by the transcript with numbered image placeholders.
-pub fn for_claude(session: &Session, opts: &ExportOptions, vocabulary: &[String]) -> String {
+pub fn for_agent(session: &Session, opts: &ExportOptions, vocabulary: &[String]) -> String {
     let transcript = render(session, opts, ShotStyle::Numbered);
     prompts::cleanup_prompt(vocabulary, transcript.trim_end())
 }
@@ -102,8 +102,8 @@ mod tests {
     }
 
     #[test]
-    fn claude_format() {
-        insta::assert_snapshot!(for_claude(&meeting(), &ExportOptions::default(), &["大澤研".to_string()]));
+    fn agent_format() {
+        insta::assert_snapshot!(for_agent(&meeting(), &ExportOptions::default(), &["大澤研".to_string()]));
     }
 
     #[test]

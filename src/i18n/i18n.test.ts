@@ -10,7 +10,7 @@ describe("i18n", () => {
 
   it("core strings match the spec table", () => {
     expect(ja.start).toBe("開始");
-    expect(ja.copyForClaude).toBe("Claude用にコピー");
+    expect(ja.copyForAgent).toBe("Agent用にコピー");
     expect(ja.finishing).toBe("仕上げ中…");
     expect(ja.conversation).toBe("会話として録音");
   });

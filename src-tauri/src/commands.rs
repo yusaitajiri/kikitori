@@ -321,7 +321,7 @@ pub async fn get_session(app: AppHandle, session_id: String) -> AppResult<Sessio
 #[serde(rename_all = "lowercase")]
 pub enum CopyFormat {
     Plain,
-    Claude,
+    Agent,
     Markdown,
 }
 
@@ -339,7 +339,7 @@ pub async fn copy_transcript(app: AppHandle, session_id: String, format: CopyFor
         let opts = settings.export_options();
         let text = match format {
             CopyFormat::Plain => plaintext::plain(&session, &opts),
-            CopyFormat::Claude => plaintext::for_claude(&session, &opts, &settings.vocabulary),
+            CopyFormat::Agent => plaintext::for_agent(&session, &opts, &settings.vocabulary),
             CopyFormat::Markdown => markdown::body(&session, &opts),
         };
         write_clipboard(app, &text)?;

@@ -11,7 +11,7 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 - Screenshots by hotkey or button, placed in the transcript where they were taken.
 - Sessions saved as Markdown with images, recovered after a crash, and kept in a searchable history grouped by day, with line editing and moving several to the Recycle Bin at once.
 - A small window in white, black and one red that follows the Windows light or dark theme, with a pin to keep it on top. A red dot starts a line drawn from the live sound, 相手 above and 自分 below, under a transcript grouped into speaker turns, with pause/resume, stop and screenshot controls. Each finished session keeps the shape of its sound as a timeline to jump through and as its picture in the history.
-- Copy as plain text, Markdown or a prompt for Claude; export, each saved where you choose, to Markdown (a folder or a ZIP with the images), PDF typeset with Typst in Yu Gothic, and the Typst file itself to edit.
+- Copy as plain text, Markdown or a prompt for AI agents; export, each saved where you choose, to Markdown (a folder or a ZIP with the images), PDF typeset with Typst in Yu Gothic, and the Typst file itself to edit.
 - Model manager with resumable, checksum-verified downloads and a 10-second speed benchmark.
 - Setup wizard, tray menu, global hotkeys (off until you set them), Japanese and English UI; the first launch follows the Windows display language.
 - App icon and logo: a red bird (kiki-tori; とり is a bird) whose outline ripples out in fading waves. In the tray the ripples show only while recording (grey while paused or finishing); the title bar shows the kikitori logo, with the bird as its o, and the PDF footer carries the bird.

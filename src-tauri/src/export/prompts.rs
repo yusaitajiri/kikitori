@@ -1,4 +1,4 @@
-//! The cleanup prompt (section 11) that 「Claude用にコピー」 puts before the transcript.
+//! The cleanup prompt (section 11) that 「Agent用にコピー」 puts before the transcript.
 
 /// Cleanup rules; `{vocabulary}` and `{transcript}` are substituted.
 pub const CLEANUP_TEMPLATE: &str =
@@ -20,7 +20,7 @@ pub fn vocabulary_line(vocabulary: &[String]) -> String {
     if terms.is_empty() { NO_VOCABULARY.to_string() } else { terms.join("、") }
 }
 
-/// The full prompt for pasting into claude.ai.
+/// The full prompt for pasting into an AI chat or agent.
 pub fn cleanup_prompt(vocabulary: &[String], transcript: &str) -> String {
     CLEANUP_TEMPLATE.replace("{vocabulary}", &vocabulary_line(vocabulary)).replace("{transcript}", transcript)
 }

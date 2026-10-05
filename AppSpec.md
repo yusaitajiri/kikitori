@@ -37,7 +37,7 @@ could not pick an app.
 pick the source (mic, whole system or one app), optionally adding the mic as 自分 against 相手;
 one key drops a screenshot at that moment; export Markdown, PDF and Typst; a small installer that
 downloads its model on first run; typo cleanup by copying the transcript with a ready-made
-prompt for claude.ai (no API key).
+prompt for any AI chat or agent (no API key).
 
 **Non-goals:** diarization beyond 自分/相手, translation, summaries, accounts or sync, video,
 audio editing, a caption overlay, platforms other than Windows 10/11 x64 (macOS is phase 2,
@@ -65,8 +65,8 @@ saves itself. Then コピー, or 書き出し for Markdown, PDF or Typst.
 recommends a model for the PC, downloads it with a progress bar (resumable), runs a 10-second mic
 test that shows the first words, and opens ready to record.
 
-**Flow C: typo cleanup.** After stopping, 「Claude用にコピー」 puts a cleanup prompt and the
-transcript on the clipboard for pasting into claude.ai.
+**Flow C: typo cleanup.** After stopping, 「Agent用にコピー」 puts a cleanup prompt and the
+transcript on the clipboard for pasting into an AI chat or agent.
 
 **Flow D: crash recovery.** On the next launch the app finds a session with no end marker, asks
 「前回の記録が途中で終了しています。復元しますか？」, and 復元 rebuilds the transcript from the event
@@ -105,7 +105,7 @@ items (section 19).
 | FR-40 | Transcript | Live list; auto-scroll pauses when the user scrolls up and 最新へ appears. |
 | FR-41 | Transcript | Edit or delete a line after Stop; every export uses the edits. |
 | FR-50 | Copy | コピー copies plain text; settings choose times and labels. Markdown copy is in the … menu. |
-| FR-51 | Copy | 「Claude用にコピー」 copies the cleanup prompt followed by the transcript. |
+| FR-51 | Copy | 「Agent用にコピー」 copies the cleanup prompt followed by the transcript. |
 | FR-52 | Sessions | On Stop, `transcript.md` and `images/` are saved in the session folder, which opens with one click. |
 | FR-53 | Export | PDF with Japanese fonts and full-width screenshots; also Typst source and Markdown (folder or ZIP). |
 | FR-60 | Sessions | Each session is one folder under the output root (default `Documents\Kikitori`). |
@@ -132,7 +132,7 @@ the reference for UI changes.
 - **Places.** Expanded: 録音 · 履歴 · 設定 in the title bar. The recording place has three phases:
   the start screen (the red dot with 開始, the source picker), the recording (transcript over the
   live line) and the finished session (header, transcript, the session's line, copy and export).
-- **Rare actions** (Markdown copy, Claude用, exports, history, settings) sit in the … menu, a
+- **Rare actions** (Markdown copy, Agent用, exports, history, settings) sit in the … menu, a
   native popup so it fits the compact window.
 - **Errors** are a banner at the top with one action, e.g. 「マイクへのアクセスがオフです [設定を開く]」
   opening `ms-settings:privacy-microphone`. Banners are inverted (paper on ink), so red never
@@ -406,7 +406,7 @@ app: Kikitori 0.1.0
 | Action | Content |
 | --- | --- |
 | コピー | Plain text, one paragraph per line (`[15:15:58] 相手: …`), screenshots as `[画像 15:16:03]` unless hidden |
-| Claude用にコピー | The cleanup prompt (`export/prompts.rs`), then the text with screenshots as `[画像:0001 15:16:03]`, which the prompt says to keep untouched |
+| Agent用にコピー | The cleanup prompt (`export/prompts.rs`), then the text with screenshots as `[画像:0001 15:16:03]`, which the prompt says to keep untouched |
 | Markdownでコピー | The Markdown body without front matter |
 
 **Exports (書き出し).** Each asks where to save, starting in Downloads with the session folder's
@@ -451,7 +451,7 @@ The status row shows `GPU: <name>` from the Vulkan device list, or `CPU`.
 
 ## 13. Claude cleanup (dropped)
 
-Dropped on 2026-10-04: 「Claude用にコピー」 (section 11) covers typo cleanup with no API key, and no
+Dropped on 2026-10-04: 「Agent用にコピー」 (section 11) covers typo cleanup with no API key, and no
 transcript text leaves the PC.
 
 ## 14. IPC contract

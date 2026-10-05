@@ -3,7 +3,7 @@
   "stop": "Stop",
   "screenshot": "Screenshot",
   "copy": "Copy",
-  "copyForClaude": "Copy for Claude",
+  "copyForAgent": "Copy for AI agents",
   "copyMarkdown": "Copy as Markdown",
   "export": "Export",
   "exportMarkdown": "Export Markdown",

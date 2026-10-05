@@ -1,6 +1,6 @@
 ---
 source: src/export/plaintext.rs
-expression: "for_claude(&meeting(), &ExportOptions::default(), &[\"大澤研\".to_string()])"
+expression: "for_agent(&meeting(), &ExportOptions::default(), &[\"大澤研\".to_string()])"
 ---
 以下は音声認識で自動生成した文字起こしです。誤字・誤変換・句読点を直して、読みやすい日本語に整えてください。
 ルール:

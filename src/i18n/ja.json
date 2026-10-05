@@ -3,7 +3,7 @@
   "stop": "停止",
   "screenshot": "スクショ",
   "copy": "コピー",
-  "copyForClaude": "Claude用にコピー",
+  "copyForAgent": "Agent用にコピー",
   "copyMarkdown": "Markdownでコピー",
   "export": "書き出し",
   "exportMarkdown": "Markdownを書き出し",
