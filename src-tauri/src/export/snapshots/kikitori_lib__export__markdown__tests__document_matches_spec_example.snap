@@ -1,0 +1,22 @@
+---
+source: src/export/markdown.rs
+expression: "document(&meeting(), &ExportOptions::default(), &META)"
+---
+---
+title: Zoom
+date: 2026-10-02 15:13
+duration: 01:02:15
+sources: [相手 (Zoom), 自分 (マイク)]
+model: turbo-q5
+app: Kikitori 0.1.0
+---
+
+# Zoom — 2026-10-02 15:13
+
+**[15:15:58] 相手:** それでは始めます。次のスライドお願いします。
+
+![15:16:03 のスクリーンショット](images/0001_151603.png)
+
+**[15:16:05] 自分:** よろしくお願いします。
+
+*— 15:40:12 音声ソース再接続 —*

@@ -1,0 +1,8 @@
+---
+source: src/export/plaintext.rs
+expression: "plain(&meeting(), &ExportOptions::default())"
+---
+[15:15:58] 相手: それでは始めます。次のスライドお願いします。
+[画像 15:16:03]
+[15:16:05] 自分: よろしくお願いします。
+— 15:40:12 音声ソース再接続 —

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-segment"
+description = "Enables the update_segment command without any pre-configured scope."
+commands.allow = ["update_segment"]
+
+[[permission]]
+identifier = "deny-update-segment"
+description = "Denies the update_segment command without any pre-configured scope."
+commands.deny = ["update_segment"]

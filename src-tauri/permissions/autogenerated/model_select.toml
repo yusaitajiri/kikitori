@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-model-select"
+description = "Enables the model_select command without any pre-configured scope."
+commands.allow = ["model_select"]
+
+[[permission]]
+identifier = "deny-model-select"
+description = "Denies the model_select command without any pre-configured scope."
+commands.deny = ["model_select"]

@@ -1,0 +1,13 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "bundle": {
+    "resources": {
+      "resources/bench_ja.wav": "resources/bench_ja.wav",
+      "resources/vulkan/vulkan-1.dll": "vulkan-1.dll",
+      "resources/vulkan/VulkanRT-License.txt": "licenses/VulkanRT-License.txt",
+      "resources/licenses/typst-LICENSE.txt": "licenses/typst-LICENSE.txt",
+      "resources/licenses/typst-NOTICE.txt": "licenses/typst-NOTICE.txt",
+      "resources/licenses/THIRD-PARTY-NOTICES.txt": "licenses/THIRD-PARTY-NOTICES.txt"
+    }
+  }
+}

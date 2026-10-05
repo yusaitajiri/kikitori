@@ -1,0 +1,96 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Runners vary; build the same portable AVX2 code the release ships.
+  GGML_NATIVE: "OFF"
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - run: git config --global core.longpaths true
+      - uses: actions/checkout@v7.0.1
+      # whisper.cpp's Vulkan build nests MSBuild paths deep enough to pass MAX_PATH under the
+      # default target dir. rust-cache below points at the same folder.
+      - name: Short cargo target dir
+        shell: pwsh
+        run: '"CARGO_TARGET_DIR=$([IO.Path]::GetFullPath("$env:GITHUB_WORKSPACE\..\t"))" >> $env:GITHUB_ENV'
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      # glslc compiles whisper.cpp's Vulkan shaders. bindgen uses the runner's preinstalled LLVM.
+      - uses: jakoch/install-vulkan-sdk-action@v1.6.0
+        with:
+          vulkan_version: 1.4.363.0
+          cache: true
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: src-tauri -> ../../t
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # The Tauri macros embed the built frontend, so cargo needs dist/.
+      - run: pnpm build
+      - name: cargo fmt
+        working-directory: src-tauri
+        run: cargo fmt --check
+      - name: cargo clippy (the GPU build that ships)
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --features gpu-vulkan -- -D warnings
+      - name: cargo test
+        working-directory: src-tauri
+        # CPU build: the runner has no GPU driver.
+        run: cargo test
+
+  # Every push to main yields an installer to try (no release, no updater JSON).
+  installer:
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - run: git config --global core.longpaths true
+      - uses: actions/checkout@v7.0.1
+      - name: Short cargo target dir
+        shell: pwsh
+        run: '"CARGO_TARGET_DIR=$([IO.Path]::GetFullPath("$env:GITHUB_WORKSPACE\..\t"))" >> $env:GITHUB_ENV'
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - uses: jakoch/install-vulkan-sdk-action@v1.6.0
+        with:
+          vulkan_version: 1.4.363.0
+          cache: true
+      - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: src-tauri -> ../../t
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/tauri-gpu.mjs build
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: kikitori-installer
+          path: ${{ env.CARGO_TARGET_DIR }}/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

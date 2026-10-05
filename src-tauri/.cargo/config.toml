@@ -1,0 +1,14 @@
+# Link the C runtime statically, so the exe needs no VC++ Redistributable (spec section 17).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# The cmake crate replaces CMake's per-config flags with cc's, which on MSVC carry no
+# optimization level, so whisper.cpp would build unoptimized (about 10x slower on CPU).
+# whisper-rs-sys forwards CMAKE_* and GGML_* variables to its CMake configure step.
+# Release builds use CMake's Release config, dev builds RelWithDebInfo.
+# -MT matches the static CRT above.
+[env]
+CMAKE_C_FLAGS_RELEASE = "-nologo -MT -O2 -Ob2 -DNDEBUG"
+CMAKE_CXX_FLAGS_RELEASE = "-nologo -MT -O2 -Ob2 -DNDEBUG"
+CMAKE_C_FLAGS_RELWITHDEBINFO = "-nologo -MT -O2 -Ob2 -DNDEBUG"
+CMAKE_CXX_FLAGS_RELWITHDEBINFO = "-nologo -MT -O2 -Ob2 -DNDEBUG"

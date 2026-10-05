@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cancel-finishing"
+description = "Enables the cancel_finishing command without any pre-configured scope."
+commands.allow = ["cancel_finishing"]
+
+[[permission]]
+identifier = "deny-cancel-finishing"
+description = "Denies the cancel_finishing command without any pre-configured scope."
+commands.deny = ["cancel_finishing"]

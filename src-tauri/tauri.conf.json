@@ -1,0 +1,79 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Kikitori",
+  "version": "0.1.0",
+  "identifier": "dev.yusai.kikitori",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kikitori",
+        "width": 380,
+        "height": 170,
+        "minWidth": 340,
+        "minHeight": 150,
+        "resizable": true,
+        "decorations": false,
+        "alwaysOnTop": false,
+        "contentProtected": true,
+        "visible": false,
+        "shadow": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Japanese",
+          "English"
+        ]
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    },
+    "resources": {
+      "resources/bench_ja.wav": "resources/bench_ja.wav",
+      "resources/licenses/typst-LICENSE.txt": "licenses/typst-LICENSE.txt",
+      "resources/licenses/typst-NOTICE.txt": "licenses/typst-NOTICE.txt"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk5RUFERDhCMkVBNDUyQ0EKUldUS1VxUXVpOTNxbWV0UmJjdUp1ZENKUk1naDlySGxXNGRUekhQL0IzV04vc0dFamc3SkFNZGYK",
+      "endpoints": [
+        "https://github.com/yusaitajiri/kikitori/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

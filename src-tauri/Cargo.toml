@@ -1,0 +1,101 @@
+[package]
+name = "kikitori"
+version = "0.1.0"
+description = "Live transcription with local Whisper"
+authors = ["Yusai Tajiri"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.90"
+default-run = "kikitori"
+
+[lib]
+name = "kikitori_lib"
+crate-type = ["rlib"]
+
+[features]
+default = []
+# Release builds enable Vulkan; local builds without the Vulkan SDK stay CPU-only.
+gpu-vulkan = ["whisper-rs/vulkan"]
+# Local NVIDIA builds only (needs the CUDA toolkit).
+gpu-cuda = ["whisper-rs/cuda"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.1", features = ["tray-icon", "image-png", "protocol-asset"] }
+tauri-plugin-global-shortcut = "=2.4.0"
+tauri-plugin-clipboard-manager = "=2.4.1"
+tauri-plugin-store = "=2.5.0"
+tauri-plugin-single-instance = "=2.5.2"
+tauri-plugin-updater = "=2.13.1"
+tauri-plugin-process = "=2.4.0"
+tauri-plugin-dialog = "=2.8.1"
+tauri-plugin-opener = "=2.7.0"
+tauri-plugin-notification = "=2.5.1"
+tauri-plugin-log = "=2.10.0"
+tauri-plugin-window-state = "=2.5.0"
+
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+# PDF export: the Typst compiler as a library (Apache-2.0; LICENSE and NOTICE ship in licenses/).
+typst = "=0.15.1"
+typst-layout = "=0.15.1"
+typst-pdf = "=0.15.1"
+zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+thiserror = "2.0.21"
+anyhow = "1.0.104"
+log = "0.4"
+tracing = { version = "0.1.44", features = ["log"] }
+crossbeam-channel = "0.5.17"
+parking_lot = "0.12.5"
+chrono = { version = "0.4.45", features = ["serde"] }
+ulid = "=3.0.0"
+unicode-normalization = "0.1.25"
+base64 = "0.23.1"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+tokio = { version = "1.53.1", features = ["fs", "io-util", "time", "sync", "macros", "rt-multi-thread"] }
+futures-util = "0.3"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "http2", "stream", "json", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+sha2 = "0.11.0"
+hound = "3.5.1"
+
+whisper-rs = { version = "=0.16.0", features = ["log_backend"] }
+rubato = "=5.0.1"
+audioadapter-buffers = "5.2.0"
+earshot = "=1.2.2"
+
+[target.'cfg(windows)'.dependencies]
+wasapi = "=0.25.0"
+xcap = "=0.9.8"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
+trash = "5.2.9"
+windows = { version = "0.62.2", features = [
+  "Win32_Foundation",
+  "Win32_Globalization",
+  "Win32_System_Threading",
+  "Win32_System_Performance",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Wdk_System_SystemServices",
+  "Win32_System_SystemInformation",
+  "Win32_Media_Audio",
+  "Win32_Graphics_Dwm",
+] }
+
+[dev-dependencies]
+insta = "1.48.0"
+tempfile = "3.27.0"
+
+[profile.dev.package."*"]
+# whisper.cpp and the DSP crates are unusably slow without optimizations.
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = "debuginfo"

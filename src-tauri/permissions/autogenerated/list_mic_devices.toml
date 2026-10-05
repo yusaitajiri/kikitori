@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-mic-devices"
+description = "Enables the list_mic_devices command without any pre-configured scope."
+commands.allow = ["list_mic_devices"]
+
+[[permission]]
+identifier = "deny-list-mic-devices"
+description = "Denies the list_mic_devices command without any pre-configured scope."
+commands.deny = ["list_mic_devices"]

@@ -1,0 +1,12 @@
+# Phrases Whisper invents on silence or noise (section 8). One per line; matched after NFKC
+# normalization with punctuation and spaces stripped, as an exact match or a prefix.
+# Do NOT add ご清聴ありがとうございました: people really say it at the end of talks.
+ご視聴ありがとうございました
+最後までご視聴いただきありがとうございました
+チャンネル登録よろしくお願いします
+チャンネル登録お願いします
+高評価とチャンネル登録お願いします
+次回もお楽しみに
+Thank you for watching
+Thanks for watching
+Please subscribe

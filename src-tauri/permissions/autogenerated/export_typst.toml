@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-export-typst"
+description = "Enables the export_typst command without any pre-configured scope."
+commands.allow = ["export_typst"]
+
+[[permission]]
+identifier = "deny-export-typst"
+description = "Denies the export_typst command without any pre-configured scope."
+commands.deny = ["export_typst"]
