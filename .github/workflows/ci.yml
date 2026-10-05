@@ -1,9 +1,12 @@
 name: ci
 
+# Docs-only changes skip the build; the installer comes from release.yml.
 on:
   pull_request:
+    paths-ignore: ["**.md", "docs/**"]
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -57,40 +60,3 @@ jobs:
         working-directory: src-tauri
         # CPU build: the runner has no GPU driver.
         run: cargo test
-
-  # Every push to main yields an installer to try (no release, no updater JSON).
-  installer:
-    needs: check
-    if: github.event_name == 'push'
-    runs-on: windows-latest
-    env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-    steps:
-      - run: git config --global core.longpaths true
-      - uses: actions/checkout@v7.0.1
-      - name: Short cargo target dir
-        shell: pwsh
-        run: '"CARGO_TARGET_DIR=$([IO.Path]::GetFullPath("$env:GITHUB_WORKSPACE\..\t"))" >> $env:GITHUB_ENV'
-      - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.98.1
-      - uses: jakoch/install-vulkan-sdk-action@v1.6.0
-        with:
-          vulkan_version: 1.4.363.0
-          cache: true
-      - uses: Swatinem/rust-cache@v2.9.2
-        with:
-          workspaces: src-tauri -> ../../t
-      - run: pnpm install --frozen-lockfile
-      - run: node scripts/tauri-gpu.mjs build
-      - uses: actions/upload-artifact@v7.0.1
-        with:
-          name: kikitori-installer
-          path: ${{ env.CARGO_TARGET_DIR }}/release/bundle/nsis/*-setup.exe
-          if-no-files-found: error

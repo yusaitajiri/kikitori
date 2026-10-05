@@ -524,7 +524,7 @@ through the Tauri updater.
 - **Versioning.** SemVer, `tauri.conf.json` is the source, `CHANGELOG.md` alongside.
 
 **CI** (`.github/workflows/`): `ci.yml` runs lint, type checks, tests and the Vulkan clippy build
-on every push and pull request, and builds the installer on main; `release.yml` builds and signs
+on every push and pull request that changes more than docs; `release.yml` builds and signs
 a draft release from a `v*` tag; `nightly.yml` runs the ignored integration tests on CPU with
 `base-q5`.
 

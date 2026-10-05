@@ -31,8 +31,8 @@ found a reason to deviate.
   12.6 MB.
 - **CI.** Actions are pinned to exact tags and Rust to 1.98.1 (the version the code was built
   with). The short target directory is computed at run time (`$GITHUB_WORKSPACE\..\t`) instead
-  of assuming a drive letter. Besides the checks, `ci.yml` builds the installer on every push to
-  main and uploads it as an artifact.
+  of assuming a drive letter. `ci.yml` only checks, and skips pushes that change nothing but
+  Markdown or `docs/`; installers come from `release.yml`, which builds one per `v*` tag.
 - **rustfmt** uses `max_width = 120` with `use_small_heuristics = "Max"`, the style the code was
   written in; `cargo fmt --check` runs in CI.
 - **Licence: MIT**, the spec's default for a public repository.
