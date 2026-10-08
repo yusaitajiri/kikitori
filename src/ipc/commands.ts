@@ -38,6 +38,10 @@ export const commands = {
   switchToSystem: () => invoke<void>("switch_to_system"),
   takeScreenshot: () => invoke<{ id: string; tMs: number }>("take_screenshot"),
   addCut: () => invoke<void>("add_cut"),
+  /** Marks the line being said as important; `false` when nothing has been said yet. */
+  markCurrentLine: () => invoke<boolean>("mark_current_line"),
+  markSegment: (sessionId: string, segmentId: string, important: boolean) =>
+    invoke<Segment>("mark_segment", { sessionId, segmentId, important }),
   getSession: (sessionId: string) => invoke<SessionView>("get_session", { sessionId }),
   copyTranscript: (sessionId: string, format: "plain" | "agent" | "markdown") =>
     invoke<{ chars: number }>("copy_transcript", { sessionId, format }),

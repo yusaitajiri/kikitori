@@ -22,6 +22,8 @@
     "allow-switch-to-system",
     "allow-take-screenshot",
     "allow-add-cut",
+    "allow-mark-current-line",
+    "allow-mark-segment",
     "allow-get-session",
     "allow-copy-transcript",
     "allow-export-markdown",

@@ -270,6 +270,12 @@ pub async fn add_cut(app: AppHandle) -> AppResult<()> {
     blocking(app, |_, st| recorder::add_cut(st)).await
 }
 
+/// Marks the line being said as important; `false` when nothing has been said yet.
+#[tauri::command]
+pub async fn mark_current_line(app: AppHandle) -> AppResult<bool> {
+    blocking(app, |_, st| recorder::mark_current(st)).await
+}
+
 fn root(st: &AppState) -> PathBuf {
     PathBuf::from(&st.settings.read().output.root)
 }
@@ -615,6 +621,20 @@ pub async fn update_segment(
                 _ => None,
             })
             .ok_or_else(|| AppError::internal("segment not found"))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn mark_segment(
+    app: AppHandle,
+    session_id: String,
+    segment_id: String,
+    important: bool,
+) -> AppResult<Segment> {
+    blocking(app, move |app, st| {
+        let session = edit(app, st, &session_id, LogEvent::SegmentMarked { id: segment_id.clone(), important })?;
+        session.segments().find(|s| s.id == segment_id).cloned().ok_or_else(|| AppError::internal("segment not found"))
     })
     .await
 }

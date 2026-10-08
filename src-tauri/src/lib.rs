@@ -134,6 +134,8 @@ pub fn run() {
             commands::switch_to_system,
             commands::take_screenshot,
             commands::add_cut,
+            commands::mark_current_line,
+            commands::mark_segment,
             commands::get_session,
             commands::copy_transcript,
             commands::export_markdown,

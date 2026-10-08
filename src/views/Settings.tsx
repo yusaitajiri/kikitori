@@ -227,7 +227,7 @@ function Hotkeys({ s }: { s: SettingsT }) {
   const { t } = useTranslation();
   const save = useSave();
   const { info, refreshInfo } = useSettings();
-  const set = async (k: "toggle" | "screenshot", v: string) => {
+  const set = async (k: keyof SettingsT["hotkeys"], v: string) => {
     await save({ hotkeys: { [k]: v } });
     await refreshInfo();
   };
@@ -235,6 +235,8 @@ function Hotkeys({ s }: { s: SettingsT }) {
     <Section>
       <HotkeyInput label={t("hotkeyToggle")} value={s.hotkeys.toggle} onChange={(v) => set("toggle", v)} error={info?.hotkeyErrors.toggle} />
       <HotkeyInput label={t("hotkeyScreenshot")} value={s.hotkeys.screenshot} onChange={(v) => set("screenshot", v)} error={info?.hotkeyErrors.screenshot} />
+      <HotkeyInput label={t("hotkeyMark")} value={s.hotkeys.mark} onChange={(v) => set("mark", v)} error={info?.hotkeyErrors.mark} />
+      <HotkeyInput label={t("hotkeyCut")} value={s.hotkeys.cut} onChange={(v) => set("cut", v)} error={info?.hotkeyErrors.cut} />
     </Section>
   );
 }
@@ -311,7 +313,7 @@ function SettingsIndex({ s }: { s: SettingsT }) {
     transcription: `${t(languageKey[s.language])} · ${s.useGpu && info?.gpuCompiled ? t("gpu") : t("cpu")}`,
     models: model?.full ?? s.modelId,
     screenshots: t(targetKey[s.screenshot.target]),
-    hotkeys: hotkeysTaken ? t("hotkeyTaken") : [s.hotkeys.toggle, s.hotkeys.screenshot].filter(Boolean).join(" · ") || t("hotkeyOff"),
+    hotkeys: hotkeysTaken ? t("hotkeyTaken") : [s.hotkeys.toggle, s.hotkeys.screenshot, s.hotkeys.mark, s.hotkeys.cut].filter(Boolean).join(" · ") || t("hotkeyOff"),
     output: shortPath(s.output.root),
   };
   return (

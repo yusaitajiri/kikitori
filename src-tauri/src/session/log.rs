@@ -45,6 +45,11 @@ pub enum LogEvent {
         id: String,
         text: String,
     },
+    /// The user marked a line important, or took the mark off (FR-07).
+    SegmentMarked {
+        id: String,
+        important: bool,
+    },
     Screenshot {
         id: String,
         t_ms: u64,
@@ -265,6 +270,7 @@ pub fn apply(s: &mut Session, event: LogEvent) {
                 text_original: None,
                 edited: false,
                 utterance_id: Some(utterance_id),
+                important: false,
             }));
             if t_end_ms > s.duration_ms {
                 s.duration_ms = t_end_ms;
@@ -288,6 +294,16 @@ pub fn apply(s: &mut Session, event: LogEvent) {
                         seg.edited = true;
                     }
                     seg.text = text;
+                    break;
+                }
+            }
+        }
+        LogEvent::SegmentMarked { id, important } => {
+            for item in s.items.iter_mut() {
+                if let TimelineItem::Segment(seg) = item
+                    && seg.id == id
+                {
+                    seg.important = important;
                     break;
                 }
             }

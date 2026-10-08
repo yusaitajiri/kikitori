@@ -170,6 +170,16 @@ export async function addCut() {
   }
 }
 
+/** Marks the line being said as important (FR-07); its text may still be on its way. */
+export async function markCurrentLine() {
+  try {
+    const marked = await commands.markCurrentLine();
+    useUi.getState().toast(t(marked ? "markAdded" : "nothingToMark"));
+  } catch (e) {
+    reportError(e);
+  }
+}
+
 export async function pauseOrResume() {
   const state = useRecording.getState().state;
   try {

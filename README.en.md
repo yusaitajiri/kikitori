@@ -51,13 +51,14 @@ Before you record anyone, let them know.
 | Choose what to transcribe | **Source**: an app (Zoom and so on), All system audio, or Microphone only. Turn on **Record a conversation** to add your own voice as Me |
 | Add a screenshot | **Screenshot** while recording |
 | Mark where a new topic or scene starts | The **scissors** button while recording. Exports give each part a heading |
+| Mark something important | The **star** button while recording (it marks the line being said). Each line's star adds or removes the mark too; exports start such lines with ★ |
 | Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for AI agents |
 | See past recordings | **History** in the title bar. You can also fix or delete lines there |
 
 - Recordings are saved automatically in `Documents\Kikitori`, one folder per recording named by date and title (`transcript.md` and images).
 - Exports and copies are in Japanese whatever the app's language: lines are labelled 相手 (Others) and 自分 (Me).
 - Through speakers, your mic may pick up the other side's voice. Headphones work best (duplicate lines are removed automatically).
-- Start/Stop and Screenshot can get keys that work from any app: Settings → Hotkeys (off at first).
+- Start/Stop, Screenshot, the important mark and the cut can get keys that work from any app: Settings → Hotkeys (off at first).
 - On a PC without a usable GPU, Kikitori runs on the CPU. If it feels slow, choose **Lightweight** in Settings → Models.
 
 ## Privacy

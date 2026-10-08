@@ -1,10 +1,10 @@
-import { Camera, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square } from "lucide-react";
+import { Camera, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square, Star } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useElapsed } from "../hooks/useElapsed";
 import { commands } from "../ipc/commands";
 import type { SourceId } from "../ipc/types";
-import { addCut, copy, exportAs, newRecording, openFolder, pauseOrResume, reportError, takeScreenshot, toggleRecording } from "../lib/actions";
+import { addCut, copy, exportAs, markCurrentLine, newRecording, openFolder, pauseOrResume, reportError, takeScreenshot, toggleRecording } from "../lib/actions";
 import { clockAt, timerText } from "../lib/format";
 import { animate, reducedMotion, stopAnimating, type Animated } from "../lib/frameLoop";
 import { blobPath, liveLine, mapLine, sessionShape, type Shape } from "../lib/line";
@@ -668,7 +668,7 @@ function StartRow({ compact, onHover }: { compact: boolean; onHover: (on: boolea
   );
 }
 
-/** The time in big numerals, then pause or resume, stop, screenshot and cut. */
+/** The time in big numerals, then pause or resume, stop, screenshot, mark and cut. */
 function LiveRow({ compact, paused }: { compact: boolean; paused: boolean }) {
   const { t } = useTranslation();
   const elapsed = useElapsed();
@@ -709,6 +709,9 @@ function LiveRow({ compact, paused }: { compact: boolean; paused: boolean }) {
         </button>
         <button type="button" onClick={takeScreenshot} disabled={paused} aria-label={t("screenshot")} title={t("screenshot")} className={ctl}>
           <Camera size={17} />
+        </button>
+        <button type="button" onClick={markCurrentLine} aria-label={t("markLine")} title={t("markLine")} className={ctl}>
+          <Star size={16} />
         </button>
         <button type="button" onClick={addCut} aria-label={t("cut")} title={t("cut")} className={ctl}>
           <Scissors size={16} />

@@ -41,6 +41,8 @@ h1 { font-size: 17pt; margin: 0 0 4pt; line-height: 1.3; }
 p { margin: 0 0 7pt; }
 .time { color: #666; font-variant-numeric: tabular-nums; margin-right: 0.4em; }
 .label { font-weight: 700; margin-right: 0.4em; }
+.important { font-weight: 700; }
+.important::before { content: "★"; margin-right: 0.4em; }
 .label.me { color: #1b5e20; }
 .label.others { color: #0d47a1; }
 figure { margin: 8pt 0 10pt; break-inside: avoid; page-break-inside: avoid; }
@@ -61,8 +63,8 @@ pub fn render_linking(session: &Session, opts: &ExportOptions, link: &dyn Fn(&Sc
     let mut body = String::new();
     for block in blocks(session, opts) {
         match block {
-            Block::Paragraph { t_ms, source, text } => {
-                body.push_str("<p>");
+            Block::Paragraph { t_ms, source, text, important } => {
+                body.push_str(if important { "<p class=\"important\">" } else { "<p>" });
                 if opts.timestamps {
                     body.push_str(&format!("<span class=\"time\">[{}]</span>", clock(session, t_ms)));
                 }

@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../ipc/commands";
@@ -113,6 +113,15 @@ function SegmentRow({ seg, head, startedAt, twoSpeakers, editable }: { seg: Segm
       reportError(e, "saveFailed");
     }
   };
+  const toggleImportant = async () => {
+    if (!sessionId) return;
+    try {
+      store.getState().updateSegment(await commands.markSegment(sessionId, seg.id, !seg.important));
+    } catch (e) {
+      reportError(e, "saveFailed");
+    }
+  };
+  const markLabel = seg.important ? t("unmarkImportant") : t("markImportant");
 
   return (
     <div className={`group relative px-[18px] pb-0.5 ${head ? "pt-3.5" : "pt-0.5"}`}>
@@ -142,28 +151,38 @@ function SegmentRow({ seg, head, startedAt, twoSpeakers, editable }: { seg: Segm
           </div>
         </div>
       ) : (
-        <p className={`selectable text-[14px] leading-[1.8] break-words ${fresh ? "animate-settle" : ""}`}>
+        <p className={`selectable relative text-[14px] leading-[1.8] break-words ${seg.important ? "font-semibold" : ""} ${fresh ? "animate-settle" : ""}`}>
+          {/* An important line: an ink stroke in the margin beside it, and bolder text. */}
+          {seg.important && <span className="absolute inset-y-[0.4em] -left-[11px] w-[3px] rounded-full bg-fg" aria-hidden />}
+          {seg.important && <span className="sr-only">{t("important")}: </span>}
           {seg.text}
           {seg.edited && <span className="ml-1.5 rounded border border-line px-1 py-px align-middle text-[10px] text-muted">{t("edited")}</span>}
         </p>
       )}
-      {editable && !editing && (
+      {!editing && sessionId && (
         <RowActions>
-          <button
-            type="button"
-            aria-label={t("editLine")}
-            title={t("editLine")}
-            className={actionClass}
-            onClick={() => {
-              setDraft(seg.text);
-              setEditing(true);
-            }}
-          >
-            <Pencil size={13} />
+          <button type="button" aria-label={markLabel} title={markLabel} aria-pressed={!!seg.important} className={actionClass} onClick={toggleImportant}>
+            <Star size={13} fill={seg.important ? "currentColor" : "none"} />
           </button>
-          <button type="button" aria-label={t("deleteLine")} title={t("deleteLine")} className={actionClass} onClick={remove}>
-            <Trash2 size={13} />
-          </button>
+          {editable && (
+            <>
+              <button
+                type="button"
+                aria-label={t("editLine")}
+                title={t("editLine")}
+                className={actionClass}
+                onClick={() => {
+                  setDraft(seg.text);
+                  setEditing(true);
+                }}
+              >
+                <Pencil size={13} />
+              </button>
+              <button type="button" aria-label={t("deleteLine")} title={t("deleteLine")} className={actionClass} onClick={remove}>
+                <Trash2 size={13} />
+              </button>
+            </>
+          )}
         </RowActions>
       )}
     </div>
@@ -510,7 +529,8 @@ export function TranscriptTail() {
         return (
           <div key={r.key} className="flex animate-fade-up items-baseline gap-2 text-[13px] leading-6">
             {label(item.source)}
-            {tailText(item.text, "selectable")}
+            {item.important && <Star size={11} fill="currentColor" className="shrink-0 self-center" aria-label={t("important")} />}
+            {tailText(item.text, item.important ? "selectable font-semibold" : "selectable")}
           </div>
         );
       })}

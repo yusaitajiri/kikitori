@@ -17,8 +17,11 @@ pub fn render(session: &Session, opts: &ExportOptions, shots: ShotStyle) -> Stri
     let mut lines: Vec<String> = Vec::new();
     for block in blocks(session, opts) {
         match block {
-            Block::Paragraph { t_ms, source, text } => {
+            Block::Paragraph { t_ms, source, text, important } => {
                 let mut line = String::new();
+                if important {
+                    line.push_str(super::IMPORTANT);
+                }
                 if opts.timestamps {
                     line.push_str(&format!("[{}] ", clock(session, t_ms)));
                 }

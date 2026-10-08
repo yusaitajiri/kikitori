@@ -63,7 +63,7 @@ fn body_linking(session: &Session, opts: &ExportOptions, link: &dyn Fn(&Screensh
     let labels = opts.show_labels(session);
     for block in blocks(session, opts) {
         match block {
-            Block::Paragraph { t_ms, source, text } => {
+            Block::Paragraph { t_ms, source, text, important } => {
                 let prefix = match (opts.timestamps, labels) {
                     (true, true) => {
                         format!("**[{}] {}:** ", clock(session, t_ms), session.label_for(source))
@@ -74,7 +74,8 @@ fn body_linking(session: &Session, opts: &ExportOptions, link: &dyn Fn(&Screensh
                 };
                 let text =
                     if prefix.is_empty() { escape_block_start(&escape_inline(&text)) } else { escape_inline(&text) };
-                parts.push(format!("{prefix}{text}"));
+                let star = if important { super::IMPORTANT } else { "" };
+                parts.push(format!("{star}{prefix}{text}"));
             }
             Block::Screenshot(shot) => parts.push(image_block(session, shot, &link(shot))),
             Block::Marker(marker) if marker.kind == MarkerKind::Unprocessed => {

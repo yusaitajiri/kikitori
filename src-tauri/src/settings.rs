@@ -141,13 +141,17 @@ impl Default for ScreenshotSettings {
     }
 }
 
-/// Global shortcuts; an empty one is off. Both are off until the user sets them in Settings:
+/// Global shortcuts; an empty one is off. All are off until the user sets them in Settings:
 /// obvious defaults such as `Ctrl+Alt+R` are often held by another app already.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Hotkeys {
     pub toggle: String,
     pub screenshot: String,
+    /// Mark the line being said as important (FR-07).
+    pub mark: String,
+    /// Start a new part (FR-06).
+    pub cut: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -269,8 +273,11 @@ impl Settings {
             .filter(|t| !t.is_empty() && seen.insert(t.clone()))
             .take(MAX_VOCABULARY)
             .collect();
-        self.hotkeys.toggle = self.hotkeys.toggle.trim().to_string();
-        self.hotkeys.screenshot = self.hotkeys.screenshot.trim().to_string();
+        for key in
+            [&mut self.hotkeys.toggle, &mut self.hotkeys.screenshot, &mut self.hotkeys.mark, &mut self.hotkeys.cut]
+        {
+            *key = key.trim().to_string();
+        }
         if crate::models::catalog::find(&self.model_id).is_none() {
             self.model_id = d.model_id;
         }

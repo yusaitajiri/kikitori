@@ -9,6 +9,8 @@ pub const AUDIO_APP_LEVELS: &str = "audio://app-levels";
 pub const TRANSCRIPT_PARTIAL: &str = "transcript://partial";
 pub const TRANSCRIPT_SEGMENT: &str = "transcript://segment";
 pub const TRANSCRIPT_SEGMENT_REMOVED: &str = "transcript://segment-removed";
+/// A line changed after it arrived (marked important, FR-07); the payload is the whole segment.
+pub const TRANSCRIPT_SEGMENT_UPDATED: &str = "transcript://segment-updated";
 pub const TRANSCRIPT_SCREENSHOT: &str = "transcript://screenshot";
 pub const TRANSCRIPT_MARKER: &str = "transcript://marker";
 pub const ASR_LAG: &str = "asr://lag";

@@ -1,11 +1,42 @@
-//! Global hotkeys (FR-01, FR-30, FR-92). Off until set; a failure is reported in Settings only.
+//! Global hotkeys (FR-01, FR-06, FR-07, FR-30, FR-92). Off until set; a failure is reported in
+//! Settings only.
 
 use std::collections::BTreeMap;
 
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+use crate::events::{self, Notice, NoticeLevel};
 use crate::state::AppState;
+
+/// What a hotkey does; it runs off the shortcut thread.
+type Action = fn(&AppHandle, &AppState);
+
+fn toggle(app: &AppHandle, st: &AppState) {
+    #[cfg(windows)]
+    crate::recorder::toggle(app, st);
+    #[cfg(not(windows))]
+    let _ = (app, st);
+}
+
+fn screenshot(app: &AppHandle, st: &AppState) {
+    let _ = crate::recorder::take_screenshot(app, st);
+}
+
+/// The button shows its own toast; a hotkey, pressed with another app in front, says what it did.
+fn mark(app: &AppHandle, st: &AppState) {
+    let message = match crate::recorder::mark_current(st) {
+        Ok(true) => "markAdded",
+        Ok(false) => "nothingToMark",
+        Err(_) => "shotOnlyWhileRecording",
+    };
+    events::notice(app, Notice::new(NoticeLevel::Info, "mark", message).toast());
+}
+
+fn cut(app: &AppHandle, st: &AppState) {
+    let message = if crate::recorder::add_cut(st).is_ok() { "cutAdded" } else { "shotOnlyWhileRecording" };
+    events::notice(app, Notice::new(NoticeLevel::Info, "cut", message).toast());
+}
 
 /// (Re)registers the hotkeys that are set (an empty one is off).
 pub fn register_all(app: &AppHandle) {
@@ -14,40 +45,35 @@ pub fn register_all(app: &AppHandle) {
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
     let mut errors = BTreeMap::new();
-
-    if hotkeys.toggle.is_empty() {
-        // Off.
-    } else if let Err(e) = gs.on_shortcut(hotkeys.toggle.as_str(), |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            let app = app.clone();
-            std::thread::spawn(move || {
-                let st = app.state::<AppState>();
-                #[cfg(windows)]
-                crate::recorder::toggle(&app, &st);
-            });
+    let table: [(&str, &str, Action); 4] = [
+        ("toggle", &hotkeys.toggle, toggle),
+        ("screenshot", &hotkeys.screenshot, screenshot),
+        ("mark", &hotkeys.mark, mark),
+        ("cut", &hotkeys.cut, cut),
+    ];
+    let mut taken: Vec<&str> = Vec::new();
+    for (name, accelerator, action) in table {
+        if accelerator.is_empty() {
+            continue; // Off.
         }
-    }) {
-        tracing::warn!("toggle hotkey {} failed: {e}", hotkeys.toggle);
-        errors.insert("toggle".to_string(), e.to_string());
-    }
-
-    if hotkeys.screenshot.is_empty() {
-        // Off.
-    } else if hotkeys.screenshot.eq_ignore_ascii_case(&hotkeys.toggle) {
-        errors.insert("screenshot".to_string(), "same as Start/Stop".to_string());
-    } else if let Err(e) = gs.on_shortcut(hotkeys.screenshot.as_str(), |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            let app = app.clone();
-            std::thread::spawn(move || {
-                let st = app.state::<AppState>();
-                let _ = crate::recorder::take_screenshot(&app, &st);
-            });
+        if taken.iter().any(|t| t.eq_ignore_ascii_case(accelerator)) {
+            errors.insert(name.to_string(), "same as another shortcut".to_string());
+            continue;
         }
-    }) {
-        tracing::warn!("screenshot hotkey {} failed: {e}", hotkeys.screenshot);
-        errors.insert("screenshot".to_string(), e.to_string());
+        let registered = gs.on_shortcut(accelerator, move |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                let app = app.clone();
+                std::thread::spawn(move || action(&app, &app.state::<AppState>()));
+            }
+        });
+        match registered {
+            Ok(()) => taken.push(accelerator),
+            Err(e) => {
+                tracing::warn!("{name} hotkey {accelerator} failed: {e}");
+                errors.insert(name.to_string(), e.to_string());
+            }
+        }
     }
-
     *st.hotkey_errors.lock() = errors;
 }
 

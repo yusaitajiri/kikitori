@@ -45,6 +45,7 @@ enum DocBlock {
         time: Option<String>,
         label: Option<String>,
         me: bool,
+        important: bool,
         text: String,
     },
     /// `file` is relative to the document.
@@ -75,10 +76,11 @@ fn doc(session: &Session, opts: &ExportOptions, mut image: impl FnMut(&Screensho
     let mut out = Vec::new();
     for block in blocks(session, opts) {
         out.push(match block {
-            Block::Paragraph { t_ms, source, text } => DocBlock::Line {
+            Block::Paragraph { t_ms, source, text, important } => DocBlock::Line {
                 time: opts.timestamps.then(|| clock(session, t_ms)),
                 label: labels.then(|| session.label_for(source).to_string()),
                 me: source == SourceId::Mic,
+                important,
                 text,
             },
             Block::Screenshot(shot) => {
@@ -148,7 +150,7 @@ fn source(doc: &Doc, first_line: &str) -> String {
     out.push_str(&format!("#header({}, {})\n\n", string(&doc.title), string(&doc.meta)));
     for block in &doc.blocks {
         match block {
-            DocBlock::Line { time, label, me, text } => {
+            DocBlock::Line { time, label, me, important, text } => {
                 out.push_str("#entry(");
                 if let Some(time) = time {
                     out.push_str(&format!("time: {}, ", string(time)));
@@ -158,6 +160,9 @@ fn source(doc: &Doc, first_line: &str) -> String {
                 }
                 if *me {
                     out.push_str("me: true, ");
+                }
+                if *important {
+                    out.push_str("important: true, ");
                 }
                 out.push_str(&format!("{})\n", string(text)));
             }
@@ -302,7 +307,7 @@ mod tests {
         let d = doc(&s, &ExportOptions::default(), |_| None);
         assert_eq!(d.title, "Zoom");
         assert_eq!(d.meta, "2026-10-02 15:13 · 01:02:15 · 相手 (Zoom), 自分 (マイク)");
-        let DocBlock::Line { time, label, me, text } = &d.blocks[0] else { panic!("{:?}", d.blocks[0]) };
+        let DocBlock::Line { time, label, me, text, .. } = &d.blocks[0] else { panic!("{:?}", d.blocks[0]) };
         assert_eq!((time.as_deref(), label.as_deref(), *me), (Some("15:15:58"), Some("相手"), false));
         assert!(text.starts_with("それでは始めます。"));
         assert!(d.blocks.iter().any(|b| matches!(b, DocBlock::Line { me: true, .. })));
@@ -329,6 +334,7 @@ mod tests {
                     time: Some("15:00:00".into()),
                     label: Some("自分".into()),
                     me: true,
+                    important: true,
                     text: "]) #evil".into(),
                 },
                 DocBlock::Image { file: "images/1.png".into(), width_mm: 112.5, caption: "c".into() },
@@ -340,7 +346,7 @@ mod tests {
         assert!(src.starts_with("// first\n\n// The look of a Kikitori transcript"));
         assert!(src.ends_with(
             "#set document(title: \"T\\\"#\")\n#header(\"T\\\"#\", \"m\")\n\n\
-             #entry(time: \"15:00:00\", label: \"自分\", me: true, \"]) #evil\")\n\
+             #entry(time: \"15:00:00\", label: \"自分\", me: true, important: true, \"]) #evil\")\n\
              #shot(\"images/1.png\", 112.5mm, \"c\")\n#note(\"n\")\n#cut(\"15:10:00\")\n"
         ));
     }
@@ -385,8 +391,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("images")).unwrap();
         image::RgbImage::new(2400, 1350).save(dir.path().join("images/0001_151603.png")).unwrap();
-        // With a cut, so its heading is laid out too.
+        // With a cut and an important line, so the heading and the star are laid out too.
         let mut s = meeting();
+        if let Some(TimelineItem::Segment(seg)) = s.items.get_mut(0) {
+            seg.important = true;
+        }
         s.items.push(TimelineItem::Marker(Marker {
             id: "mk_0002".into(),
             t_ms: at(15, 16, 5),

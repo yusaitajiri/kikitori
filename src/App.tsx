@@ -75,6 +75,7 @@ function useBackendEvents() {
       on("transcript://segment", (p) => isLive() && tr().addSegment(p)),
       on("transcript://partial", (p) => isLive() && tr().setPartial(p)),
       on("transcript://segment-removed", (p) => isLive() && tr().removeItem(p.id)),
+      on("transcript://segment-updated", (p) => isLive() && tr().updateSegment(p)),
       on("transcript://screenshot", (p) => {
         if (!isLive()) return;
         tr().addScreenshot(p);

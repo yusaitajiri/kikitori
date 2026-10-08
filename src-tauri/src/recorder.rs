@@ -656,6 +656,21 @@ pub fn add_cut(st: &AppState) -> AppResult<()> {
     Ok(())
 }
 
+/// Marks the line being said now as important (FR-07): the utterance in progress, else the one
+/// that ended last. Its text may still be on its way; the mark waits for it. `false` when nothing
+/// has been said yet.
+pub fn mark_current(st: &AppState) -> AppResult<bool> {
+    let rec = st.recorder.lock();
+    let Phase::Recording(active) = &*rec else { return Err(AppError::internal("not recording")) };
+    let t_ms = active.paused_at.unwrap_or_else(|| active.now_ms());
+    let utterances = crate::asr::worker::current_utterances(&active.ctx.speaking.lock(), t_ms);
+    if utterances.is_empty() {
+        return Ok(false);
+    }
+    active.store.mark_utterances(&utterances, t_ms);
+    Ok(true)
+}
+
 /// Screenshot (FR-30, FR-31). The time is read before any capture work.
 pub fn take_screenshot(app: &AppHandle, st: &AppState) -> AppResult<ShotResponse> {
     let (store, t_ms, root_pid) = {

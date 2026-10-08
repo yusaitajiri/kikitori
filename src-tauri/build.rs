@@ -15,6 +15,8 @@ const COMMANDS: &[&str] = &[
     "switch_to_system",
     "take_screenshot",
     "add_cut",
+    "mark_current_line",
+    "mark_segment",
     "get_session",
     "copy_transcript",
     "export_markdown",

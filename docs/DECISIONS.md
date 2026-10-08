@@ -145,6 +145,18 @@ found a reason to deviate.
   a break can end a part. Markdown heads the part with `## HH:MM:SS`, the PDF with the time
   over a hairline as a heading (so the PDF outline lists the parts), and plain text with
   「— HH:MM:SS 区切り —」. Parts have no names yet; the marker's `detail` would hold one.
+- **"The line being said" is an utterance, not a time** (FR-07). A line's text arrives seconds
+  after it is spoken, so the star cannot just mark the newest line: while someone speaks that
+  is the line before. Each DSP thread notes the utterance it has open and the last one it
+  closed (`SessionCtx::speaking`); the star takes every utterance open at that moment, else the
+  one that ended last, and the store keeps the mark until that utterance's text arrives. Whisper
+  may split one utterance into several lines; the mark goes to the one spoken at the moment of
+  the press. An utterance that gives no line (too short, a filtered hallucination) drops its
+  mark. Marking from the transcript works on any line, live or after, through `mark_segment`.
+- **Important lines in exports** start with `★ `, a character an agent reads as plainly as a
+  person, rather than bold or highlight markup, which differs between Markdown flavours and
+  would be lost in plain text. An important line is its own paragraph, so the star never
+  claims a neighbour's words.
 - **Unprocessed audio** after 処理を中止 is recorded as an `unprocessed` marker and
   `unprocessedMs`, rendered as 「（以降、未処理の音声 N 秒）」.
 - **Exports are Japanese** in any UI locale: the session stores 自分 / 相手 and the spec defines
@@ -340,6 +352,12 @@ found a reason to deviate.
 - **最新へ jumps from far away.** More than two screens above the newest line it scrolls there
   at once instead of gliding: in a long session left in the background the glide took seconds,
   and rows measured on the way kept moving the end.
+- **The star** sits between the camera and the cut while recording, and on every line's hover
+  actions (live too, unlike editing). An important line has an ink stroke in the left margin
+  and semibold text; red stays the voice you hear. The compact window's two lines show a star.
+- **More hotkeys.** Important mark and cut have hotkeys too (off until set), since a meeting
+  app is usually in front. Pressed from another app, they confirm with a toast; all four share
+  one registration loop, and one set to the same keys as another is reported, not registered.
 - **The cut button** (scissors) sits after the camera while recording. A cut shows in the
   transcript as a marker with a darker rule and more space above it, and a toast confirms it,
   since the compact window's two lines leave markers out.

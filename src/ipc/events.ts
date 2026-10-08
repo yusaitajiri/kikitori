@@ -26,6 +26,7 @@ export type EventMap = {
   "transcript://partial": PartialPayload;
   "transcript://segment": Segment;
   "transcript://segment-removed": RemovedPayload;
+  "transcript://segment-updated": Segment;
   "transcript://screenshot": ScreenshotPayload;
   "transcript://marker": MarkerPayload;
   "asr://lag": LagPayload;

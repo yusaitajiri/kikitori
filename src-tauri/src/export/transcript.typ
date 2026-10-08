@@ -43,11 +43,13 @@
   v(0.4em)
 }
 
-// One paragraph: its time and who spoke (both optional), then what was said.
-#let entry(time: none, label: none, me: false, body) = par({
+// One paragraph: its time and who spoke (both optional), then what was said. A line the user
+// marked important starts with a star and is set in bold.
+#let entry(time: none, label: none, me: false, important: false, body) = par({
+  if important { text(fill: ink, "★") + h(0.4em) }
   if time != none { text(fill: muted, number-width: "tabular", "[" + time + "]") + h(0.4em) }
   if label != none { text(weight: "bold", fill: if me { ink } else { red }, label) + h(0.4em) }
-  body
+  if important { text(weight: "bold", body) } else { body }
 })
 
 // A screenshot, its width chosen so a tall one stays on the page, with its caption.

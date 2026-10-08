@@ -53,7 +53,13 @@ const MERGE_MAX_CHARS: usize = 400;
 /// One rendered block of the transcript, in display order.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block<'a> {
-    Paragraph { t_ms: u64, source: SourceId, text: String },
+    /// `important`: the user marked its line (FR-07); such a line is never merged with others.
+    Paragraph {
+        t_ms: u64,
+        source: SourceId,
+        text: String,
+        important: bool,
+    },
     Screenshot(&'a Screenshot),
     Marker(&'a Marker),
 }
@@ -71,7 +77,9 @@ pub fn blocks<'a>(session: &'a Session, opts: &ExportOptions) -> Vec<Block<'a>> 
                     continue;
                 }
                 if opts.merge_paragraphs
-                    && let (Some(end), Some(Block::Paragraph { source, text: para, .. })) = (open_end, out.last_mut())
+                    && !seg.important
+                    && let (Some(end), Some(Block::Paragraph { source, text: para, important: false, .. })) =
+                        (open_end, out.last_mut())
                     && *source == seg.source
                     && seg.t_start_ms.saturating_sub(end) < MERGE_GAP_MS
                     && para.chars().count() + text.chars().count() <= MERGE_MAX_CHARS
@@ -80,7 +88,12 @@ pub fn blocks<'a>(session: &'a Session, opts: &ExportOptions) -> Vec<Block<'a>> 
                     open_end = Some(end.max(seg.t_end_ms));
                     continue;
                 }
-                out.push(Block::Paragraph { t_ms: seg.t_start_ms, source: seg.source, text: text.to_string() });
+                out.push(Block::Paragraph {
+                    t_ms: seg.t_start_ms,
+                    source: seg.source,
+                    text: text.to_string(),
+                    important: seg.important,
+                });
                 open_end = Some(seg.t_end_ms);
             }
             TimelineItem::Screenshot(shot) => {
@@ -136,6 +149,10 @@ pub fn hms(duration_ms: u64) -> String {
 pub fn image_number(shot: &Screenshot) -> String {
     shot.id.strip_prefix("img_").unwrap_or(&shot.id).to_string()
 }
+
+/// Starts a line the user marked important (FR-07), in every text export; the agent prompt
+/// says what it means.
+pub const IMPORTANT: &str = "★ ";
 
 pub fn marker_text(session: &Session, marker: &Marker) -> String {
     let time = clock(session, marker.t_ms);
@@ -274,6 +291,52 @@ mod tests {
             false,
         );
         assert_eq!(blocks(&s, &ExportOptions::default()).len(), 2);
+    }
+
+    /// A meeting whose second line (merged into the first otherwise) is marked important.
+    fn meeting_with_important_line() -> Session {
+        let mut s = meeting();
+        if let Some(TimelineItem::Segment(seg)) = s.items.get_mut(1) {
+            seg.important = true;
+        }
+        s
+    }
+
+    #[test]
+    fn an_important_line_stands_alone() {
+        let s = meeting_with_important_line();
+        let b = blocks(&s, &ExportOptions::default());
+        let paragraphs: Vec<(&str, bool)> = b
+            .iter()
+            .filter_map(|b| match b {
+                Block::Paragraph { text, important, .. } => Some((text.as_str(), *important)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            paragraphs,
+            [("それでは始めます。", false), ("次のスライドお願いします。", true), ("よろしくお願いします。", false)]
+        );
+        let plain = plaintext::plain(&s, &ExportOptions::default());
+        assert!(
+            plain.contains(
+                "
+★ [15:16:01] 相手: 次のスライドお願いします。
+"
+            ),
+            "{plain}"
+        );
+        let md = markdown::body(&s, &ExportOptions::default());
+        assert!(
+            md.contains(
+                "
+
+★ **[15:16:01] 相手:** 次のスライドお願いします。
+
+"
+            ),
+            "{md}"
+        );
     }
 
     #[test]

@@ -297,12 +297,21 @@ impl Dsp {
 
     fn on_event(&mut self, ev: SegEvent) {
         match ev {
-            SegEvent::Opened { .. } => {
-                self.current = Some(self.ids.next_utterance());
+            SegEvent::Opened { start_sample } => {
+                let id = self.ids.next_utterance();
+                self.ctx.speaking.lock().entry(self.params.source).or_default().open =
+                    Some((id.clone(), start_sample * 1000 / TARGET_RATE as u64));
+                self.current = Some(id);
                 self.last_partial_len = 0;
             }
             SegEvent::Closed(u) => {
                 let utterance_id = self.current.take().unwrap_or_else(|| self.ids.next_utterance());
+                {
+                    let mut speaking = self.ctx.speaking.lock();
+                    let s = speaking.entry(self.params.source).or_default();
+                    s.open = None;
+                    s.last = Some((utterance_id.clone(), u.end_ms()));
+                }
                 self.summary.utterances += 1;
                 let rms = rms_dbfs(&u.samples);
                 let speech_ms = u.speech_ms;
@@ -318,7 +327,10 @@ impl Dsp {
                     retries: 0,
                 });
             }
-            SegEvent::Discarded { .. } => self.current = None,
+            SegEvent::Discarded { .. } => {
+                self.current = None;
+                self.ctx.speaking.lock().entry(self.params.source).or_default().open = None;
+            }
         }
     }
 
@@ -431,6 +443,7 @@ mod tests {
             pad_quiet_stream: false,
             start_ms: 0,
         };
+        let ctx_seen = ctx.clone();
         let handle =
             spawn(rx, params, ctx, collect.clone(), Arc::new(SessionIds::default()), Arc::new(Levels::default()));
 
@@ -463,6 +476,10 @@ mod tests {
         assert!((600..=1100).contains(&first.start_ms), "start {}", first.start_ms);
         assert!(first.end_ms() <= 3_700, "end {}", first.end_ms());
         assert_eq!(first.utterance_id, "utt_000001");
+        // The utterance is remembered as the last one said, for marking it (FR-07).
+        let speaking = ctx_seen.speaking.lock().get(&SourceId::App).cloned().unwrap_or_default();
+        assert_eq!(speaking.open, None);
+        assert_eq!(speaking.last.as_ref().map(|(id, _)| id.as_str()), Some("utt_000001"));
         // 6 s of audio at 16 kHz, the 2 s gap filled with zeros.
         assert!((summary.samples_16k as i64 - 96_000).abs() < 2_000, "{}", summary.samples_16k);
         assert_eq!(summary.clock.gaps_filled, 1);

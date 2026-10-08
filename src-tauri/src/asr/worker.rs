@@ -75,6 +75,37 @@ pub trait SegmentSink: Send + Sync {
     fn on_language(&self, language: &str);
 }
 
+/// One source's utterances as the DSP thread cuts them: the one being spoken and the last that
+/// ended, each as (utterance ID, time in ms). Marking "the line being said" (FR-07) reads them
+/// before the line has any text.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Speaking {
+    pub open: Option<(String, u64)>,
+    pub last: Option<(String, u64)>,
+}
+
+/// The utterances "the current line" means at `t_ms`: every one being spoken then, else the one
+/// that ended last.
+pub fn current_utterances(speaking: &HashMap<SourceId, Speaking>, t_ms: u64) -> Vec<String> {
+    let mut open: Vec<(u64, String)> = speaking
+        .values()
+        .filter_map(|s| s.open.as_ref())
+        .filter(|(_, start)| *start <= t_ms)
+        .map(|(id, start)| (*start, id.clone()))
+        .collect();
+    if !open.is_empty() {
+        open.sort();
+        return open.into_iter().map(|(_, id)| id).collect();
+    }
+    speaking
+        .values()
+        .filter_map(|s| s.last.as_ref())
+        .max_by_key(|(_, end)| *end)
+        .map(|(id, _)| id.clone())
+        .into_iter()
+        .collect()
+}
+
 /// Per-recording state shared by the DSP threads and the worker.
 pub struct SessionCtx {
     pub session_id: String,
@@ -86,6 +117,8 @@ pub struct SessionCtx {
     /// Per source, the language its clips start in since Whisper was sure they were not in the
     /// configured one (see `language`).
     pub switched: Mutex<HashMap<SourceId, String>>,
+    /// Per source, what is being said (see [`Speaking`]).
+    pub speaking: Mutex<HashMap<SourceId, Speaking>>,
 }
 
 impl SessionCtx {
@@ -97,6 +130,7 @@ impl SessionCtx {
             locked_language: Mutex::new(None),
             last_text: Mutex::new(HashMap::new()),
             switched: Mutex::new(HashMap::new()),
+            speaking: Mutex::new(HashMap::new()),
         })
     }
 
@@ -935,5 +969,25 @@ mod tests {
         q.finals.push(job(&c, SourceId::App, "utt_1", 0, 2_000));
         assert!(next_work(&mut q).is_none());
         assert_eq!(q.finals.len(), 1);
+    }
+
+    #[test]
+    fn the_current_line_is_what_is_being_said_else_the_last_said() {
+        let spoken = |open: Option<(&str, u64)>, last: Option<(&str, u64)>| Speaking {
+            open: open.map(|(id, t)| (id.to_string(), t)),
+            last: last.map(|(id, t)| (id.to_string(), t)),
+        };
+        let mut speaking = HashMap::new();
+        assert!(current_utterances(&speaking, 1_000).is_empty());
+        speaking.insert(SourceId::App, spoken(None, Some(("utt_000001", 4_000))));
+        speaking.insert(SourceId::Mic, spoken(None, Some(("utt_000002", 6_000))));
+        // Nobody speaking: the line that ended last.
+        assert_eq!(current_utterances(&speaking, 7_000), ["utt_000002"]);
+        // Someone speaking: that line, even before its text exists.
+        speaking.insert(SourceId::App, spoken(Some(("utt_000003", 6_500)), Some(("utt_000001", 4_000))));
+        assert_eq!(current_utterances(&speaking, 7_000), ["utt_000003"]);
+        // Both speaking: both lines, earlier first.
+        speaking.insert(SourceId::Mic, spoken(Some(("utt_000004", 6_800)), None));
+        assert_eq!(current_utterances(&speaking, 7_000), ["utt_000003", "utt_000004"]);
     }
 }

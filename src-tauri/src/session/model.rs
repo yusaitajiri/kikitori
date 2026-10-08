@@ -66,6 +66,9 @@ pub struct Segment {
     pub edited: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub utterance_id: Option<String>,
+    /// Marked important by the user (FR-07), while recording or after.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub important: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -220,6 +223,7 @@ pub(crate) mod tests {
             text_original: None,
             edited: false,
             utterance_id: None,
+            important: false,
         })
     }
 

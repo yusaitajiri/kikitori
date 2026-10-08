@@ -85,6 +85,7 @@ items (section 19).
 | FR-04 | Recording | On Stop, transcribe all queued audio with progress, then save the session. |
 | FR-05 | Recording | Pause and resume, with markers in the timeline. |
 | FR-06 | Recording | A cut button starts a new part of the session (a new topic or scene), recorded as a `cut` marker; exports head each part with its time. |
+| FR-07 | Recording | A star button (and hotkey) marks the line being said as important, even before its text arrives; any line can be marked or unmarked from the transcript while recording or after. Exports start an important line with ★. |
 | FR-10 | Sources | Sources: the whole system, the mic alone, or one app. |
 | FR-11 | Sources | The app list puts apps with an audio session first, each showing its live sound, then other apps with windows; it has a refresh button. |
 | FR-12 | Sources | 「会話として録音」 (on by default) adds the mic to an app or system recording, labelling lines 自分 (mic) and 相手 (the rest). |
@@ -118,7 +119,7 @@ items (section 19).
 | FR-72 | Models | A 10-second benchmark rates how well the PC runs a model. |
 | FR-90 | System | Tray menu: 開始/停止, スクショ, ウィンドウを表示, 終了. |
 | FR-91 | System | Single instance: a second launch focuses the running window. |
-| FR-92 | System | Configurable hotkeys; one that fails to register is reported in Settings. |
+| FR-92 | System | Configurable hotkeys (Start/Stop, screenshot, important mark, cut); one that fails to register is reported in Settings. |
 | FR-93 | System | Closing the window hides it to the tray while recording or finishing, and quits otherwise. Quitting while recording asks first. |
 | FR-94 | System | Compact and expanded layouts, an always-on-top pin (off by default), remembered window position. |
 | FR-95 | System | Update check at most once a day through the Tauri updater. |
@@ -345,7 +346,7 @@ from it, so a crash loses at most the last line.
 characters, `-2` and so on if taken):
 
 - `session.jsonl`: the event log, one JSON object per line with schema version `v`. Events:
-  `session_started`, `segment`, `segment_removed`, `segment_edited`, `screenshot`,
+  `session_started`, `segment`, `segment_removed`, `segment_edited`, `segment_marked`, `screenshot`,
   `screenshot_deleted`, `caption_set`, `marker`, `title_changed`, `language_detected`,
   `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
   last line is ignored on replay.
@@ -399,6 +400,9 @@ app: Kikitori 0.1.0
 - Settings: timestamps on/off; labels on, off or auto (only when there are two sources).
 - A cut (FR-06) is a `## HH:MM:SS` heading, so a reader or an agent sees the session's parts;
   other markers are italic lines as above.
+- An important line (FR-07) starts with `★ ` and is never merged into a paragraph with other
+  lines. Plain text does the same, the PDF sets it in bold after a star, and the cleanup prompt
+  tells the agent what ★ means and to keep it.
 - Image links are relative. Alt text is the caption, else 「HH:MM:SS のスクリーンショット」; a
   caption is also an italic line under the image.
 - If the user edited `transcript.md` (its hash differs from what Kikitori wrote), Kikitori writes

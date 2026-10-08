@@ -66,7 +66,7 @@ export type Settings = {
   hallucinationFilter: boolean;
   audioCtxExperimental: boolean;
   screenshot: { target: ScreenshotTarget; excludeSelf: boolean; sound: boolean };
-  hotkeys: { toggle: string; screenshot: string };
+  hotkeys: { toggle: string; screenshot: string; mark: string; cut: string };
   output: { root: string; titleTemplate: string };
   export: { timestamps: boolean; labels: LabelMode; mergeParagraphs: boolean };
   copy: { screenshotMarkers: boolean };
@@ -123,6 +123,8 @@ export type Segment = {
   textOriginal?: string;
   edited: boolean;
   utteranceId?: string;
+  /** Marked important by the user (FR-07). */
+  important?: boolean;
 };
 
 export type Screenshot = {
