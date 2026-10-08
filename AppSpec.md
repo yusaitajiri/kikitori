@@ -86,6 +86,7 @@ items (section 19).
 | FR-05 | Recording | Pause and resume, with markers in the timeline. |
 | FR-06 | Recording | A cut button starts a new part of the session (a new topic or scene), recorded as a `cut` marker; exports head each part with its time. |
 | FR-07 | Recording | A star button (and hotkey) marks the line being said as important, even before its text arrives; any line can be marked or unmarked from the transcript while recording or after. Exports start an important line with ★. |
+| FR-08 | Recording | 「続きを録音」 (a finished session's ⋯ menu, History's row menu) records more onto a saved session, today's or an old one: its transcript, screenshots and sound carry on after its end, and clock times after that point follow the new start. |
 | FR-10 | Sources | Sources: the whole system, the mic alone, or one app. |
 | FR-11 | Sources | The app list puts apps with an audio session first, each showing its live sound, then other apps with windows; it has a refresh button. |
 | FR-12 | Sources | 「会話として録音」 (on by default) adds the mic to an app or system recording, labelling lines 自分 (mic) and 相手 (the rest). |
@@ -357,7 +358,7 @@ characters, `-2` and so on if taken):
 - `session.jsonl`: the event log, one JSON object per line with schema version `v`. Events:
   `session_started`, `segment`, `segment_removed`, `segment_edited`, `segment_marked`, `screenshot`,
   `screenshot_deleted`, `caption_set`, `marker`, `title_changed`, `project_set`, `language_detected`,
-  `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
+  `session_continued`, `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
   last line is ignored on replay.
 - `session.json`: a snapshot written on Stop and after edits, plus hashes of files Kikitori
   wrote.
@@ -366,7 +367,10 @@ characters, `-2` and so on if taken):
 - `images/`: screenshots.
 
 Session IDs are ULIDs; segment, image and marker IDs count up within a session. Shown times are
-`startedAt + tMs` in local `HH:MM:SS`.
+`startedAt + tMs` in local `HH:MM:SS`. A continued session (FR-08) records on from just after its
+end, so session time stays one line, and lists each continuation as `{ atMs, startedAt }`: from
+`atMs` on, shown times count from that `startedAt`. The log's `session_continued` opens the
+session again until the next `session_stopped`.
 
 **Recovery (FR-61).** At launch, a `session.jsonl` without `session_stopped` is offered for
 recovery (Flow D): replay the log, write the snapshot and `transcript.md`, append

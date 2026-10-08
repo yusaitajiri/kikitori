@@ -170,6 +170,17 @@ found a reason to deviate.
   (`Session::two_sides`), not how many sources there are, so Zoom → Teams alone stays unlabelled.
   If the new source fails, the old plan restarts and the picker goes back to it. While paused
   the new plan waits for resume. 「システム全体に切り替える」 after a silent app is the same switch.
+- **Continuing a session appends, it does not merge** (FR-08). The new recording starts at the
+  next 100 ms step after the session's end, so the transcript, the screenshots and `levels.bin`
+  carry on in one session time, and each continuation records its wall-clock start
+  (`Session::continued`) so the clock times after it stay true even days later; the timeline
+  marks the seam with a `continued` marker (with the date when it differs). Session zero then
+  lies the session's length before now, which may be before the PC started, so the recorder's
+  and the stream clock's `t0` are signed. IDs carry on after the highest each kind used in the
+  log, removed lines included. `session_continued` is logged only once capture runs, so a
+  source that fails leaves the session as it was; a session that ended in a crash is recovered
+  first. The title, project and model of record stay the session's; the source is whatever the
+  picker holds now, and new sources join its list.
 - **Unprocessed audio** after 処理を中止 is recorded as an `unprocessed` marker and
   `unprocessedMs`, rendered as 「（以降、未処理の音声 N 秒）」.
 - **Exports are Japanese** in any UI locale: the session stores 自分 / 相手 and the spec defines
@@ -322,6 +333,10 @@ found a reason to deviate.
   started by accident) is greyed out and has no line; it still opens, and its menu still deletes
   it. 選択 picks several recordings to move to the Recycle Bin at once (`delete_sessions`), with
   quick picks for all and for the greyed short and empty ones.
+- **続きを録音 is in the ⋯ menus** (a finished session's and History's rows), not a button of its
+  own: the finished session's row already holds four buttons in the compact window, and
+  continuing is rarer than starting anew. It records with the source the picker holds and opens
+  the recording view; while something records, it is greyed out.
 - **A finished session's buttons**: コピー, 書き出し, which opens a dialog to pick Markdown, PDF
   or Typst (the compact window, too small for it, shows a menu), the ⋯ menu (「Agent用にコピー」,
   「Markdownでコピー」, フォルダを開く), and 「新しい録音」.

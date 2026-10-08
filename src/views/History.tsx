@@ -6,7 +6,8 @@ import { Button, Dialog, IconButton, inputClass } from "../components/ui";
 import { PageTitle } from "../components/PageTitle";
 import { commands } from "../ipc/commands";
 import type { SessionSummary } from "../ipc/types";
-import { openFolder, reportError } from "../lib/actions";
+import { continueRecording, openFolder, reportError } from "../lib/actions";
+import { useRecording } from "../store/recording";
 import { dayName, dayOf, dayText, durationText, timeOf } from "../lib/format";
 import { shapeFromActivity } from "../lib/line";
 import { menuText, popupMenu, type MenuEntry } from "../lib/popupMenu";
@@ -237,6 +238,8 @@ export function History() {
   const menu = async (s: SessionSummary) => {
     const entries: MenuEntry[] = [
       ...(s.recoverable ? ([{ text: t("recover"), action: () => void run(() => commands.recoverSession(s.id), "recovered") }, "separator"] satisfies MenuEntry[]) : []),
+      { text: t("continueRecording"), enabled: !s.recoverable && useRecording.getState().state === "ready", action: () => void continueRecording(s.id) },
+      "separator",
       {
         text: t("rename"),
         action: () => {

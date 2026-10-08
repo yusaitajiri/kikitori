@@ -9,7 +9,8 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use super::model::{
-    Marker, MarkerKind, ModelRef, SCHEMA_VERSION, Screenshot, Segment, Session, SourceId, SourceInfo, TimelineItem,
+    Continuation, Marker, MarkerKind, ModelRef, SCHEMA_VERSION, Screenshot, Segment, Session, SourceId, SourceInfo,
+    TimelineItem,
 };
 
 pub const LOG_FILE: &str = "session.jsonl";
@@ -83,6 +84,15 @@ pub enum LogEvent {
     /// The detected language once `auto` locks it (section 8).
     LanguageDetected {
         language: String,
+    },
+    /// A later recording continues the saved session from `at_ms` (FR-08); the session is open
+    /// again until the next `session_stopped`.
+    SessionContinued {
+        at_ms: u64,
+        started_at: String,
+        /// What this recording captures; new ones join the session's sources.
+        #[serde(default)]
+        sources: Vec<SourceInfo>,
     },
     SessionStopped {
         ended_at: String,
@@ -248,12 +258,15 @@ pub fn replay_lines(lines: &[String]) -> Option<Replay> {
                     items: Vec::new(),
                     unprocessed_ms: 0,
                     project: None,
+                    continued: Vec::new(),
                 });
             }
             event => {
                 let Some(s) = session.as_mut() else { continue };
-                if let LogEvent::SessionStopped { .. } = event {
-                    stopped = true;
+                match event {
+                    LogEvent::SessionStopped { .. } => stopped = true,
+                    LogEvent::SessionContinued { .. } => stopped = false,
+                    _ => {}
                 }
                 apply(s, event);
             }
@@ -341,6 +354,16 @@ pub fn apply(s: &mut Session, event: LogEvent) {
         LogEvent::ProjectSet { project } => s.project = project,
         // The session keeps the configured language (`auto`); the detected one is only logged.
         LogEvent::LanguageDetected { .. } => {}
+        LogEvent::SessionContinued { at_ms, started_at, sources } => {
+            s.continued.push(Continuation { at_ms, started_at });
+            s.ended_at = None;
+            s.duration_ms = s.duration_ms.max(at_ms);
+            for info in sources {
+                if !s.sources.contains(&info) {
+                    s.sources.push(info);
+                }
+            }
+        }
         LogEvent::SessionStopped { ended_at, duration_ms, unprocessed_ms, .. } => {
             s.ended_at = Some(ended_at);
             s.duration_ms = s.duration_ms.max(duration_ms);
@@ -425,6 +448,33 @@ mod tests {
         assert_eq!(segs[0].text_original.as_deref(), Some("二"));
         assert!(segs[0].edited);
         assert_eq!(replay.session.duration_ms, 4000);
+    }
+
+    #[test]
+    fn a_continued_session_is_open_again_until_it_stops() {
+        let stop = |duration_ms| LogEvent::SessionStopped {
+            ended_at: "2026-10-02T16:15:20+09:00".into(),
+            duration_ms,
+            unprocessed_ms: 0,
+            recovered: None,
+        };
+        let mic = SourceInfo { id: SourceId::Mic, label: "自分".into(), exe: None, device: None, name: None };
+        let continued = LogEvent::SessionContinued {
+            at_ms: 60_100,
+            started_at: "2026-10-03T09:00:00+09:00".into(),
+            sources: vec![mic.clone()],
+        };
+        let lines = |events: &[LogEvent]| events.iter().map(encode_line).collect::<Vec<_>>();
+        let open = replay_lines(&lines(&[started(), stop(60_000), continued.clone()])).unwrap();
+        // Still recording (or crashed while it was): recovery offers it.
+        assert!(!open.stopped);
+        assert_eq!(open.session.ended_at, None);
+        assert_eq!(open.session.duration_ms, 60_100);
+        assert_eq!(open.session.continued[0].started_at, "2026-10-03T09:00:00+09:00");
+        assert_eq!(open.session.sources.last(), Some(&mic));
+        let closed = replay_lines(&lines(&[started(), stop(60_000), continued, stop(90_000)])).unwrap();
+        assert!(closed.stopped);
+        assert_eq!(closed.session.duration_ms, 90_000);
     }
 
     #[test]

@@ -95,6 +95,8 @@ pub enum MarkerKind {
     Cut,
     /// The user switched what is recorded (FR-17); `detail` names the new source.
     SourceChanged,
+    /// A later recording continues the session here (FR-08); `detail` is its local date.
+    Continued,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -148,6 +150,19 @@ pub struct Session {
     /// The ID of the project the session belongs to (FR-64), from `projects.json` in the output root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
+    /// Later recordings onto this session (FR-08), in order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub continued: Vec<Continuation>,
+}
+
+/// A later recording onto a saved session (FR-08). It starts just after the session's end, so
+/// session time stays one line; from `at_ms` on, clock times count from `started_at` instead, so
+/// they stay true however long the session waited.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Continuation {
+    pub at_ms: u64,
+    pub started_at: String,
 }
 
 fn is_zero(v: &u64) -> bool {
@@ -195,7 +210,7 @@ pub struct ItemRef(pub usize);
 /// time: a segment sorts at its start, a screenshot or marker at its own time, so the
 /// timestamps shown never go backwards.
 ///
-/// On a tie, a resume, reattach, cut or source marker comes first (what follows belongs after it), then
+/// On a tie, a resume, reattach, cut, source or continuation marker comes first (what follows belongs after it), then
 /// segments (相手 before 自分), then screenshots, then pause and unprocessed markers; the ID
 /// breaks any remaining tie, which keeps capture order.
 pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
@@ -211,7 +226,8 @@ pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
                     MarkerKind::Resumed
                     | MarkerKind::SourceReattached
                     | MarkerKind::Cut
-                    | MarkerKind::SourceChanged => 0,
+                    | MarkerKind::SourceChanged
+                    | MarkerKind::Continued => 0,
                     MarkerKind::Paused | MarkerKind::Unprocessed => 3,
                 };
                 (m.t_ms, rank, 0, m.id.as_str(), idx)

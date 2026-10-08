@@ -1,12 +1,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowRightLeft, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Star, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, ArrowRightLeft, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Star, StepForward, Trash2, TriangleAlert, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../ipc/commands";
 import type { Marker, Screenshot, Segment, SourceId, TimelineItem } from "../ipc/types";
 import { reportError } from "../lib/actions";
-import { clockAt } from "../lib/format";
+import { dayOf, dayText, sessionClock } from "../lib/format";
 import { orderTimeline, type PartialItem } from "../lib/timeline";
 import { useTranscriptStore } from "../store/transcript";
 import { LINE_Y } from "./Deck";
@@ -23,12 +23,16 @@ const TURN_MS = 60_000;
 /** Further than this many screens from the newest line, 最新へ jumps instead of gliding. */
 const FAR_SCREENS = 2;
 
-function useRows(withHeader: boolean): { rows: Row[]; twoSpeakers: boolean; startedAt?: string } {
+/** A session offset as a clock time (`sessionClock`). */
+type Clock = (tMs: number) => string;
+
+function useRows(withHeader: boolean): { rows: Row[]; twoSpeakers: boolean; clock?: Clock } {
   const store = useTranscriptStore();
   const items = store((s) => s.items);
   const partials = store((s) => s.partials);
   const sources = store((s) => s.sources);
   const startedAt = store((s) => s.startedAt);
+  const continued = store((s) => s.continued);
   return useMemo(() => {
     const pending: PartialItem[] = [];
     for (const source of ["app", "system", "mic"] as SourceId[]) {
@@ -54,8 +58,8 @@ function useRows(withHeader: boolean): { rows: Row[]; twoSpeakers: boolean; star
     }
     // Speaker names only matter when both sides are recorded.
     const twoSpeakers = sources.some((s) => s.id === "mic") && sources.some((s) => s.id !== "mic");
-    return { rows, twoSpeakers, startedAt };
-  }, [items, partials, sources, startedAt, withHeader]);
+    return { rows, twoSpeakers, clock: startedAt ? sessionClock(startedAt, continued) : undefined };
+  }, [items, partials, sources, startedAt, continued, withHeader]);
 }
 
 /** Whether an item arrived live a moment ago (it animates in). */
@@ -86,7 +90,7 @@ function RowActions({ children }: { children: ReactNode }) {
 
 const actionClass = "grid size-6 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-fg";
 
-function SegmentRow({ seg, head, startedAt, twoSpeakers, editable }: { seg: Segment; head: boolean; startedAt?: string; twoSpeakers: boolean; editable: boolean }) {
+function SegmentRow({ seg, head, clock, twoSpeakers, editable }: { seg: Segment; head: boolean; clock?: Clock; twoSpeakers: boolean; editable: boolean }) {
   const { t } = useTranslation();
   const store = useTranscriptStore();
   const sessionId = store((s) => s.sessionId);
@@ -125,7 +129,7 @@ function SegmentRow({ seg, head, startedAt, twoSpeakers, editable }: { seg: Segm
 
   return (
     <div className={`group relative px-[18px] pb-0.5 ${head ? "pt-3.5" : "pt-0.5"}`}>
-      {head && <TurnHead source={seg.source} time={startedAt ? clockAt(startedAt, seg.tStartMs) : ""} twoSpeakers={twoSpeakers} />}
+      {head && <TurnHead source={seg.source} time={clock ? clock(seg.tStartMs) : ""} twoSpeakers={twoSpeakers} />}
       {editing ? (
         <div className="space-y-1.5 py-1">
           <textarea
@@ -189,7 +193,7 @@ function SegmentRow({ seg, head, startedAt, twoSpeakers, editable }: { seg: Segm
   );
 }
 
-function ScreenshotRow({ shot, startedAt, editable }: { shot: Screenshot; startedAt?: string; editable: boolean }) {
+function ScreenshotRow({ shot, clock, editable }: { shot: Screenshot; clock?: Clock; editable: boolean }) {
   const { t } = useTranslation();
   const store = useTranscriptStore();
   const thumb = store((s) => s.thumbs[shot.id]);
@@ -198,7 +202,7 @@ function ScreenshotRow({ shot, startedAt, editable }: { shot: Screenshot; starte
   const fresh = useFresh(shot.id);
   const [captionOpen, setCaptionOpen] = useState(false);
   const [caption, setCaption] = useState(shot.caption ?? "");
-  const time = startedAt ? clockAt(startedAt, shot.tMs) : "";
+  const time = clock ? clock(shot.tMs) : "";
   const path = folder ? `${folder}\\${shot.file.replaceAll("/", "\\")}` : undefined;
   const src = thumb ?? (path ? convertFileSrc(path) : undefined);
 
@@ -280,10 +284,13 @@ function ScreenshotRow({ shot, startedAt, editable }: { shot: Screenshot; starte
   );
 }
 
-function MarkerRow({ marker, startedAt }: { marker: Marker; startedAt?: string }) {
-  const { t } = useTranslation();
+function MarkerRow({ marker, clock }: { marker: Marker; clock?: Clock }) {
+  const { t, i18n } = useTranslation();
   const fresh = useFresh(marker.id);
-  const time = startedAt ? clockAt(startedAt, marker.tMs) : "";
+  const startedAt = useTranscriptStore()((s) => s.startedAt);
+  // A continuation on another day says which (FR-08).
+  const day = marker.type === "continued" && marker.detail && startedAt && marker.detail !== dayOf(startedAt) ? dayText(marker.detail, i18n.language) : "";
+  const time = clock ? `${day ? `${day} ` : ""}${clock(marker.tMs)}` : "";
   const [Icon, text] =
     marker.type === "source_reattached"
       ? [Link2, t("markerReattached")]
@@ -295,7 +302,9 @@ function MarkerRow({ marker, startedAt }: { marker: Marker; startedAt?: string }
             ? [Scissors, t("markerCut")]
             : marker.type === "source_changed"
               ? [ArrowRightLeft, t("markerSourceChanged", { source: marker.detail ?? "?" })]
-              : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
+              : marker.type === "continued"
+                ? [StepForward, t("markerContinued")]
+                : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
   // A pause or a gap had no sound, so its line stays flat. A cut starts a part, so its line is
   // darker and it stands further from the part before.
   const cut = marker.type === "cut";
@@ -314,22 +323,22 @@ function MarkerRow({ marker, startedAt }: { marker: Marker; startedAt?: string }
 }
 
 /** Provisional words in pencil grey; the final line darkens into place where they were. */
-function PartialRow({ partial, head, startedAt, twoSpeakers }: { partial: PartialItem; head: boolean; startedAt?: string; twoSpeakers: boolean }) {
+function PartialRow({ partial, head, clock, twoSpeakers }: { partial: PartialItem; head: boolean; clock?: Clock; twoSpeakers: boolean }) {
   return (
     <div className={`relative px-[18px] pb-0.5 ${head ? "pt-3.5" : "pt-0.5"}`}>
-      {head && <TurnHead source={partial.source} time={startedAt && partial.tStartMs !== undefined ? clockAt(startedAt, partial.tStartMs) : ""} twoSpeakers={twoSpeakers} />}
+      {head && <TurnHead source={partial.source} time={clock && partial.tStartMs !== undefined ? clock(partial.tStartMs) : ""} twoSpeakers={twoSpeakers} />}
       <p className="text-[14px] leading-[1.8] break-words text-partial">{partial.text}</p>
     </div>
   );
 }
 
-const RowView = memo(function RowView({ row, startedAt, twoSpeakers, editable }: { row: Row; startedAt?: string; twoSpeakers: boolean; editable: boolean }) {
+const RowView = memo(function RowView({ row, clock, twoSpeakers, editable }: { row: Row; clock?: Clock; twoSpeakers: boolean; editable: boolean }) {
   if (row.kind === "header") return null;
-  if (row.kind === "partial") return <PartialRow partial={row.partial} head={row.head} startedAt={startedAt} twoSpeakers={twoSpeakers} />;
+  if (row.kind === "partial") return <PartialRow partial={row.partial} head={row.head} clock={clock} twoSpeakers={twoSpeakers} />;
   const item = row.item;
-  if (item.kind === "segment") return <SegmentRow seg={item} head={row.head} startedAt={startedAt} twoSpeakers={twoSpeakers} editable={editable} />;
-  if (item.kind === "screenshot") return <ScreenshotRow shot={item} startedAt={startedAt} editable={editable} />;
-  return <MarkerRow marker={item} startedAt={startedAt} />;
+  if (item.kind === "segment") return <SegmentRow seg={item} head={row.head} clock={clock} twoSpeakers={twoSpeakers} editable={editable} />;
+  if (item.kind === "screenshot") return <ScreenshotRow shot={item} clock={clock} editable={editable} />;
+  return <MarkerRow marker={item} clock={clock} />;
 });
 
 /** Before the first words: the line below already shows that it is listening. */
@@ -352,7 +361,7 @@ function rowTime(r: Row): number {
  */
 export function Transcript({ editable, header, live }: { editable: boolean; header?: ReactNode; live?: boolean }) {
   const { t } = useTranslation();
-  const { rows, twoSpeakers, startedAt } = useRows(!!header);
+  const { rows, twoSpeakers, clock } = useRows(!!header);
   const store = useTranscriptStore();
   const seek = store((s) => s.seek);
   const parentRef = useRef<HTMLDivElement>(null);
@@ -466,7 +475,7 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
                     {!hasLines && <p className="py-10 text-center text-[12px] text-muted">{t("emptyTranscript")}</p>}
                   </>
                 ) : (
-                  <RowView row={row} startedAt={startedAt} twoSpeakers={twoSpeakers} editable={editable} />
+                  <RowView row={row} clock={clock} twoSpeakers={twoSpeakers} editable={editable} />
                 )}
               </div>
             );

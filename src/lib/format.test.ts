@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import en from "../i18n/en.json";
 import ja from "../i18n/ja.json";
-import { bytes, clockAt, dateTimeOf, dayName, dayOf, dayText, durationParts, durationText, hms, levelFraction, modelNameParts, sourcesText, timeOf, timerText } from "./format";
+import { bytes, clockAt, sessionClock, dateTimeOf, dayName, dayOf, dayText, durationParts, durationText, hms, levelFraction, modelNameParts, sourcesText, timeOf, timerText } from "./format";
 
 describe("format", () => {
   it("hms", () => {
@@ -12,6 +12,10 @@ describe("format", () => {
   it("clock uses the session's own offset", () => {
     expect(clockAt("2026-10-02T15:13:05+09:00", 0)).toBe("15:13:05");
     expect(clockAt("2026-10-02T15:13:05+09:00", 172_340)).toBe("15:15:57");
+    // Continued the next morning (FR-08): from there on, times count from the new start.
+    const clock = sessionClock("2026-10-02T15:13:05+09:00", [{ atMs: 60_100, startedAt: "2026-10-03T09:00:00+09:00" }]);
+    expect(clock(59_000)).toBe("15:14:04");
+    expect(clock(60_100 + 61_000)).toBe("09:01:01");
     expect(clockAt("2026-10-02T23:59:59-05:00", 2000)).toBe("00:00:01");
   });
 

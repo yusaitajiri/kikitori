@@ -134,9 +134,20 @@ pub fn session_start(session: &Session) -> DateTime<FixedOffset> {
         .unwrap_or_else(|_| DateTime::from_timestamp(0, 0).unwrap().fixed_offset())
 }
 
+/// The local time at a session offset: from the session's start, or from the start of the
+/// continuation it falls in (FR-08).
+pub fn wall_time(session: &Session, t_ms: u64) -> DateTime<FixedOffset> {
+    let part = session.continued.iter().rev().find(|c| c.at_ms <= t_ms);
+    let (start, at) = match part.and_then(|c| DateTime::parse_from_rfc3339(&c.started_at).ok().map(|d| (d, c.at_ms))) {
+        Some(found) => found,
+        None => (session_start(session), 0),
+    };
+    start + Duration::milliseconds((t_ms - at) as i64)
+}
+
 /// `HH:MM:SS` wall-clock time of a session offset.
 pub fn clock(session: &Session, t_ms: u64) -> String {
-    (session_start(session) + Duration::milliseconds(t_ms as i64)).format("%H:%M:%S").to_string()
+    wall_time(session, t_ms).format("%H:%M:%S").to_string()
 }
 
 /// `HH:MM:SS` from a duration.
@@ -162,6 +173,15 @@ pub fn marker_text(session: &Session, marker: &Marker) -> String {
         MarkerKind::Resumed => format!("{time} 再開"),
         MarkerKind::Cut => format!("{time} 区切り"),
         MarkerKind::SourceChanged => format!("{time} ソース変更: {}", marker.detail.as_deref().unwrap_or("?")),
+        MarkerKind::Continued => {
+            // The date only when the session went on another day.
+            let day = wall_time(session, marker.t_ms).format("%Y-%m-%d").to_string();
+            if day == session_start(session).format("%Y-%m-%d").to_string() {
+                format!("{time} 続きを録音")
+            } else {
+                format!("{day} {time} 続きを録音")
+            }
+        }
         MarkerKind::Unprocessed => {
             format!("以降、未処理の音声 {} 秒", marker.detail.as_deref().unwrap_or("?"))
         }
@@ -219,6 +239,7 @@ pub(crate) mod test_support {
             items,
             unprocessed_ms: 0,
             project: None,
+            continued: Vec::new(),
         }
     }
 
@@ -340,6 +361,21 @@ mod tests {
             ),
             "{md}"
         );
+    }
+
+    #[test]
+    fn a_continuation_keeps_clock_times_true() {
+        let mut s = meeting();
+        // Continued the next morning, after the session's last second (01:02:15).
+        s.continued.push(crate::session::model::Continuation {
+            at_ms: 3_735_100,
+            started_at: "2026-10-03T09:00:00+09:00".into(),
+        });
+        assert_eq!(clock(&s, at(15, 16, 1)), "15:16:01");
+        assert_eq!(clock(&s, 3_735_100), "09:00:00");
+        assert_eq!(clock(&s, 3_735_100 + 61_000), "09:01:01");
+        let marker = Marker { id: "mk_0002".into(), t_ms: 3_735_100, kind: MarkerKind::Continued, detail: None };
+        assert_eq!(marker_text(&s, &marker), "2026-10-03 09:00:00 続きを録音");
     }
 
     #[test]

@@ -21,6 +21,17 @@ export function clockAt(startedAt: string, tMs: number): string {
   return `${p(local.getUTCHours())}:${p(local.getUTCMinutes())}:${p(local.getUTCSeconds())}`;
 }
 
+/** A later recording onto a session (FR-08): from `atMs` on, clock times count from `startedAt`. */
+export type Continuation = { atMs: number; startedAt: string };
+
+/** Clock times of a session: from its start, or from the start of the continuation an offset falls in. */
+export function sessionClock(startedAt: string, continued: readonly Continuation[] = []): (tMs: number) => string {
+  return (tMs) => {
+    const part = continued.findLast((c) => c.atMs <= tMs);
+    return part ? clockAt(part.startedAt, tMs - part.atMs) : clockAt(startedAt, tMs);
+  };
+}
+
 /** `2026-10-02 15:13` in the session's offset. */
 export function dateTimeOf(startedAt: string): string {
   const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(startedAt);

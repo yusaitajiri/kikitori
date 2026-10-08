@@ -86,7 +86,9 @@ struct RunningSource {
 pub struct Active {
     pub store: Arc<SessionStore>,
     ctx: Arc<SessionCtx>,
-    pub t0: u64,
+    /// Session time zero in QPC units: the start, or for a continued session its end moved back
+    /// by its length, which may lie before boot (so signed).
+    pub t0: i64,
     /// What is being recorded, as chosen; switching the source changes it (FR-17).
     config: SourceConfig,
     pub sources: RecordedSources,
@@ -111,7 +113,7 @@ pub struct Active {
 
 impl Active {
     pub fn now_ms(&self) -> u64 {
-        platform::qpc_now_100ns().saturating_sub(self.t0) / 10_000
+        ((platform::qpc_now_100ns() as i64).saturating_sub(self.t0).max(0) / 10_000) as u64
     }
 
     /// Recorded time for the timer: stands still while paused. Session times (`now_ms`) keep
@@ -312,9 +314,33 @@ fn remember_source(app: &AppHandle, st: &AppState, config: &SourceConfig) {
     st.persist_settings(app);
 }
 
+/// A new session, or a saved one that a recording continues (FR-08).
+#[cfg(windows)]
+enum Begin {
+    New { title: Option<String> },
+    Continue { session_id: String },
+}
+
 /// Starts a recording. Capture runs within a second; the model may still be loading.
 #[cfg(windows)]
 pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option<String>) -> AppResult<StartResponse> {
+    begin(app, st, config, Begin::New { title })
+}
+
+/// Records more onto a saved session (FR-08): its transcript, screenshots and sound carry on
+/// after its end, and clock times follow the new start.
+#[cfg(windows)]
+pub fn continue_session(
+    app: &AppHandle,
+    st: &AppState,
+    config: SourceConfig,
+    session_id: String,
+) -> AppResult<StartResponse> {
+    begin(app, st, config, Begin::Continue { session_id })
+}
+
+#[cfg(windows)]
+fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> AppResult<StartResponse> {
     if !matches!(&*st.recorder.lock(), Phase::Idle) {
         return Err(AppError::internal("already recording"));
     }
@@ -334,53 +360,77 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
     check_source(&config)?;
 
     let started = Local::now();
+    let started_at = started.to_rfc3339_opts(SecondsFormat::Secs, false);
     let app_name = source_name(&config, settings.locale);
-    let title = title
-        .map(|t| t.trim().to_string())
-        .filter(|t| !t.is_empty())
-        .unwrap_or_else(|| paths::expand_title(&settings.output.title_template, &app_name, &started));
-    let root = PathBuf::from(&settings.output.root);
-    std::fs::create_dir_all(&root)?;
-    let folder = paths::unique_folder(&root, &paths::folder_name(&started, &title));
-    std::fs::create_dir_all(folder.join("images"))?;
     let Planned { plan, infos, app_root_pid } = plan_sources(&config, &app_name);
-
-    let session_id = ulid::Ulid::generate().to_string();
-    let t0 = platform::qpc_now_100ns();
+    let version = app.package_info().version.to_string();
     let gpu = if status.state == EngineState::Ready {
         status.gpu
     } else {
         settings.use_gpu && crate::asr::engine::gpu_compiled()
     };
-    let started_event = LogEvent::SessionStarted {
-        id: session_id.clone(),
-        title: title.clone(),
-        started_at: started.to_rfc3339_opts(SecondsFormat::Secs, false),
-        sources: infos.clone(),
-        model: ModelRef { id: entry.id.clone(), sha256: entry.sha256.clone() },
-        language: settings.language.as_str().into(),
-        gpu,
-        app_version: app.package_info().version.to_string(),
+    let root = PathBuf::from(&settings.output.root);
+    // The session to record into, the session time capture starts at, and whether it is new.
+    let (folder, log, session, ids, at_ms, fresh) = match how {
+        Begin::New { title } => {
+            let title = title
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .unwrap_or_else(|| paths::expand_title(&settings.output.title_template, &app_name, &started));
+            std::fs::create_dir_all(&root)?;
+            let folder = paths::unique_folder(&root, &paths::folder_name(&started, &title));
+            std::fs::create_dir_all(folder.join("images"))?;
+            let session_id = ulid::Ulid::generate().to_string();
+            let model = ModelRef { id: entry.id.clone(), sha256: entry.sha256.clone() };
+            let log = SessionLog::create(&folder)?;
+            log.append(&LogEvent::SessionStarted {
+                id: session_id.clone(),
+                title: title.clone(),
+                started_at: started_at.clone(),
+                sources: infos.clone(),
+                model: model.clone(),
+                language: settings.language.as_str().into(),
+                gpu,
+                app_version: version.clone(),
+            })?;
+            let session = Session {
+                v: SCHEMA_VERSION,
+                id: session_id,
+                title,
+                started_at: started_at.clone(),
+                ended_at: None,
+                duration_ms: 0,
+                sources: infos.clone(),
+                model,
+                language: settings.language.as_str().into(),
+                gpu,
+                items: Vec::new(),
+                unprocessed_ms: 0,
+                project: None,
+                continued: Vec::new(),
+            };
+            (folder, log, session, SessionIds::default(), 0, true)
+        }
+        Begin::Continue { session_id } => {
+            let folder = recovery::find_folder(&root, &session_id)
+                .ok_or_else(|| AppError::internal(format!("session {session_id} not found")))?;
+            let (mut session, stopped, _) = recovery::load(&folder)?;
+            if !stopped {
+                // It ended in a crash: close what it has before carrying on.
+                recovery::recover(&folder, &settings.export_options(), &version)?;
+                session = recovery::load(&folder)?.0;
+            }
+            std::fs::create_dir_all(folder.join("images"))?;
+            let log = SessionLog::open_append(&folder)?;
+            let ids = SessionIds::after_log(&folder);
+            // On a fresh step of the sound's readings, just past the end.
+            let at_ms = (session.duration_ms / crate::session::levels::STEP_MS + 1) * crate::session::levels::STEP_MS;
+            (folder, log, session, ids, at_ms, false)
+        }
     };
-    let log = SessionLog::create(&folder)?;
-    log.append(&started_event)?;
-    let session = Session {
-        v: SCHEMA_VERSION,
-        id: session_id.clone(),
-        title: title.clone(),
-        started_at: started.to_rfc3339_opts(SecondsFormat::Secs, false),
-        ended_at: None,
-        duration_ms: 0,
-        sources: infos,
-        model: ModelRef { id: entry.id.clone(), sha256: entry.sha256.clone() },
-        language: settings.language.as_str().into(),
-        gpu,
-        items: Vec::new(),
-        unprocessed_ms: 0,
-        project: None,
-    };
-    let ids = Arc::new(SessionIds::default());
-    let store = Arc::new(SessionStore::new(&folder, log, session, ids, events_of(app), settings.echo_guard));
+    let session_id = session.id.clone();
+    let t0 = (platform::qpc_now_100ns() as i64) - at_ms as i64 * 10_000;
+    let store = Arc::new(SessionStore::new(&folder, log, session, Arc::new(ids), events_of(app), settings.echo_guard));
     let ctx = SessionCtx::new(
         session_id.clone(),
         AsrConfig {
@@ -397,6 +447,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         hangover_ms: settings.vad.hangover_ms,
         ..Default::default()
     };
+    let levels = if fresh { LevelWriter::create(&folder) } else { LevelWriter::open_append(&folder) };
     let (status_tx, status_rx) = crossbeam_channel::unbounded();
     let mut active = Active {
         store,
@@ -416,12 +467,14 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         shot_window: None,
         segmenter,
         partials: settings.partials && st.partials_tier_ok(&entry.id),
-        levels: LevelWriter::create(&folder).inspect_err(|e| tracing::warn!("levels.bin: {e}")).ok(),
+        levels: levels.inspect_err(|e| tracing::warn!("levels.bin: {e}")).ok(),
     };
     st.levels.clear();
-    if let Err((source, err)) = start_sources(&mut active, st, 0) {
+    if let Err((source, err)) = start_sources(&mut active, st, at_ms) {
         drop(active);
-        let _ = std::fs::remove_dir_all(&folder);
+        if fresh {
+            let _ = std::fs::remove_dir_all(&folder);
+        }
         let msg = format!("{err:#}");
         return Err(
             if msg.contains("privacy")
@@ -435,12 +488,17 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
             },
         );
     }
+    if !fresh {
+        // Logged once capture runs, so a source that fails to start leaves the session as it was.
+        active.store.record(LogEvent::SessionContinued { at_ms, started_at, sources: infos });
+        active.store.add_marker(at_ms, MarkerKind::Continued, Some(started.format("%Y-%m-%d").to_string()));
+    }
     let response = StartResponse { session_id: session_id.clone(), folder: folder.to_string_lossy().into_owned() };
     *st.recorder.lock() = Phase::Recording(Box::new(active));
 
     remember_source(app, st, &config);
     emit_state(app, st);
-    tracing::info!("recording started: session {session_id}");
+    tracing::info!("recording {}: session {session_id}", if fresh { "started" } else { "continued" });
     Ok(response)
 }
 
@@ -775,7 +833,7 @@ pub fn take_screenshot(app: &AppHandle, st: &AppState) -> AppResult<ShotResponse
         crate::platform::play_wav(SHUTTER.get_or_init(screenshot::shutter_wav));
     }
     let (counter, id) = store.ids.next_image();
-    let local = crate::export::session_start(&store.snapshot()) + chrono::Duration::milliseconds(t_ms as i64);
+    let local = crate::export::wall_time(&store.snapshot(), t_ms);
     let hms = local.format("%H%M%S").to_string();
     let multi = result.images.len() > 1;
     let mut first: Option<ShotResponse> = None;

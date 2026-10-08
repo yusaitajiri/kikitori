@@ -62,6 +62,28 @@ impl SessionIds {
     pub fn next_marker(&self) -> String {
         format!("mk_{:04}", Self::bump(&self.mk))
     }
+
+    /// Counters that carry on after every ID a saved session's log used (FR-08), removed lines
+    /// included, so a continued recording never reuses one.
+    pub fn after_log(folder: &std::path::Path) -> Self {
+        let text = std::fs::read_to_string(folder.join(crate::session::log::LOG_FILE)).unwrap_or_default();
+        let max = |prefix: &str| -> u64 {
+            text.match_indices(prefix)
+                .filter_map(|(i, _)| {
+                    let digits: String = text[i + prefix.len()..].chars().take_while(char::is_ascii_digit).collect();
+                    digits.parse().ok()
+                })
+                .max()
+                .unwrap_or(0)
+        };
+        use std::sync::atomic::AtomicU64;
+        Self {
+            utt: AtomicU64::new(max("\"utt_")),
+            seg: AtomicU64::new(max("\"seg_")),
+            img: AtomicU64::new(max("\"img_")),
+            mk: AtomicU64::new(max("\"mk_")),
+        }
+    }
 }
 
 /// Latest peak level per source, read by the 10 Hz emitter.
@@ -92,7 +114,8 @@ impl Levels {
 #[derive(Clone)]
 pub struct DspParams {
     pub source: SourceId,
-    pub t0_100ns: u64,
+    /// Session time zero in QPC units; before boot for a continued session (see `StreamClock`).
+    pub t0_100ns: i64,
     pub segmenter: SegmenterConfig,
     pub partials: bool,
     /// Pad with zeros when no packets arrive (system loopback goes silent by stopping).
@@ -420,6 +443,24 @@ mod tests {
     }
 
     #[test]
+    fn ids_carry_on_after_a_saved_log() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(crate::session::log::LOG_FILE),
+            "{\"type\":\"segment\",\"id\":\"seg_000012\",\"utteranceId\":\"utt_000009\"}\n\
+             {\"type\":\"segment_removed\",\"id\":\"seg_000013\"}\n\
+             {\"type\":\"screenshot\",\"id\":\"img_0002\",\"file\":\"images/0002_101010.png\"}\n",
+        )
+        .unwrap();
+        let ids = SessionIds::after_log(dir.path());
+        assert_eq!(ids.next_segment(), "seg_000014");
+        assert_eq!(ids.next_utterance(), "utt_000010");
+        // Not fooled by the file name's counter.
+        assert_eq!(ids.next_image().1, "img_0003");
+        assert_eq!(ids.next_marker(), "mk_0001");
+    }
+
+    #[test]
     fn pipeline_places_and_cuts_with_correct_times() {
         let t0 = 5_000_000_000u64;
         let (tx, rx) = crossbeam_channel::unbounded();
@@ -437,7 +478,7 @@ mod tests {
         );
         let params = DspParams {
             source: SourceId::App,
-            t0_100ns: t0,
+            t0_100ns: t0 as i64,
             segmenter: SegmenterConfig::default(),
             partials: false,
             pad_quiet_stream: false,

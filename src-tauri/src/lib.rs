@@ -127,6 +127,7 @@ pub fn run() {
             commands::list_mic_devices,
             commands::watch_app_levels,
             commands::start_recording,
+            commands::continue_recording,
             commands::stop_recording,
             commands::cancel_finishing,
             commands::pause_recording,

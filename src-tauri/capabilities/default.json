@@ -15,6 +15,7 @@
     "allow-list-mic-devices",
     "allow-watch-app-levels",
     "allow-start-recording",
+    "allow-continue-recording",
     "allow-stop-recording",
     "allow-cancel-finishing",
     "allow-pause-recording",

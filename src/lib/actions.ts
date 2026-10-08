@@ -110,6 +110,24 @@ export async function toggleRecording() {
   }
 }
 
+/** Records more onto a saved session (FR-08), with the source as chosen now; the recording view shows it. */
+export async function continueRecording(sessionId: string) {
+  const cfg = useSource.getState().config();
+  if (cfg.mode === "app" && !cfg.app) {
+    useUi.getState().toast(t("chooseApp"), "warn");
+    return;
+  }
+  try {
+    await commands.continueRecording(sessionId, cfg);
+    useUi.getState().go("main");
+    // The same session may be on screen already: reload it for the new part's clock.
+    const tr = useTranscript.getState();
+    if (tr.sessionId === sessionId) tr.load(await commands.getSession(sessionId));
+  } catch (e) {
+    reportError(e, "startFailed");
+  }
+}
+
 export async function takeScreenshot() {
   try {
     await commands.takeScreenshot();

@@ -285,6 +285,7 @@ mod tests {
             items: vec![],
             unprocessed_ms: 0,
             project: None,
+            continued: Vec::new(),
         };
         let log = SessionLog::create(dir).unwrap();
         let rec = Arc::new(Recorded::default());

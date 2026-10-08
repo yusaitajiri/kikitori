@@ -11,6 +11,7 @@ import type {
   SourceInfo,
   TimelineItem,
 } from "../ipc/types";
+import type { Continuation } from "../lib/format";
 
 export type PartialLine = { utteranceId: string; text: string; tStartMs?: number };
 
@@ -24,6 +25,8 @@ export type TranscriptState = {
   gpu?: boolean;
   /** The project's ID (FR-64). */
   project?: string;
+  /** Later recordings onto the session (FR-08), for its clock times. */
+  continued: Continuation[];
   sources: SourceInfo[];
   /** How the finished session sounded, for its line; missing when the session has no `levels.bin`. */
   sound?: Sound;
@@ -60,6 +63,7 @@ const empty = {
   modelId: undefined,
   gpu: undefined,
   project: undefined,
+  continued: [],
   sources: [],
   sound: undefined,
   items: [],
@@ -96,6 +100,7 @@ export function createTranscriptStore(): TranscriptStore {
           modelId: s.model.id,
           gpu: s.gpu,
           project: s.project,
+          continued: s.continued ?? [],
           sources: s.sources,
           sound: s.sound,
           // Keep live items that may have arrived while loading.

@@ -185,6 +185,7 @@ fn stream(
         items: vec![],
         unprocessed_ms: 0,
         project: None,
+        continued: Vec::new(),
     };
     let log = SessionLog::create(dir.path()).unwrap();
     log.append(&LogEvent::SessionStarted {
@@ -226,7 +227,7 @@ fn stream(
         let (tx, rx) = crossbeam_channel::bounded(400);
         let params = DspParams {
             source: *id,
-            t0_100ns: t0,
+            t0_100ns: t0 as i64,
             segmenter: SegmenterConfig::default(),
             partials,
             pad_quiet_stream: false,

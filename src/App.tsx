@@ -57,8 +57,10 @@ function applyState(p: StatePayload) {
   const before = useRecording.getState().state;
   // The line keeps its own history: a new recording starts an empty one, a resume leaves a gap.
   if (p.state === "recording" && p.sessionId) {
+    // The same session again after a pause, or continued after it was saved (FR-08): a gap.
+    const again = lineHistory.sessionId === p.sessionId;
     lineHistory.start(p.sessionId);
-    if (before === "paused") lineHistory.gap();
+    if (again && before !== "recording") lineHistory.gap();
   }
   useRecording.getState().applyState(p);
   void followSession(p.sessionId);

@@ -8,6 +8,7 @@ const COMMANDS: &[&str] = &[
     "list_mic_devices",
     "watch_app_levels",
     "start_recording",
+    "continue_recording",
     "stop_recording",
     "cancel_finishing",
     "pause_recording",

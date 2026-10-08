@@ -33,6 +33,9 @@ export const commands = {
   watchAppLevels: (rootPids: number[]) => invoke<void>("watch_app_levels", { rootPids }),
   startRecording: (source: SourceConfig, title?: string) =>
     invoke<{ sessionId: string; folder: string }>("start_recording", { source, title }),
+  /** Records more onto a saved session (FR-08). */
+  continueRecording: (sessionId: string, source: SourceConfig) =>
+    invoke<{ sessionId: string; folder: string }>("continue_recording", { sessionId, source }),
   stopRecording: () => invoke<void>("stop_recording"),
   cancelFinishing: () => invoke<void>("cancel_finishing"),
   pauseRecording: () => invoke<void>("pause_recording"),

@@ -1,11 +1,11 @@
 import { Camera, ChevronDown, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square, Star } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useElapsed } from "../hooks/useElapsed";
 import { commands } from "../ipc/commands";
 import type { SourceId, WindowInfo } from "../ipc/types";
-import { addCut, copy, exportAs, markCurrentLine, newRecording, openFolder, pauseOrResume, reportError, takeScreenshot, toggleRecording } from "../lib/actions";
-import { clockAt, timerText } from "../lib/format";
+import { addCut, continueRecording, copy, exportAs, markCurrentLine, newRecording, openFolder, pauseOrResume, reportError, takeScreenshot, toggleRecording } from "../lib/actions";
+import { sessionClock, timerText } from "../lib/format";
 import { animate, reducedMotion, stopAnimating, type Animated } from "../lib/frameLoop";
 import { blobPath, liveLine, mapLine, sessionShape, type Shape } from "../lib/line";
 import { menuText, popupMenu, type MenuEntry } from "../lib/popupMenu";
@@ -339,6 +339,8 @@ export function Deck({
   const items = store((s) => s.items);
   const durationMs = store((s) => s.durationMs);
   const startedAt = store((s) => s.startedAt);
+  const continued = store((s) => s.continued);
+  const clock = useMemo(() => (startedAt ? sessionClock(startedAt, continued) : undefined), [startedAt, continued]);
   const sessionSources = store((s) => s.sources);
   const sound = store((s) => s.sound);
   const mode = useSource((s) => s.mode);
@@ -593,15 +595,15 @@ export function Deck({
       {(state === "recording" || state === "paused") && <LiveRow compact={compact} paused={state === "paused"} />}
       {state === "finishing" && <FinishingRow />}
       {state === "review" && sessionId && <ReviewRow compact={compact} sessionId={sessionId} folder={folder} onNew={onNew} />}
-      {state === "review" && !compact && startedAt && total > 0 && (
+      {state === "review" && !compact && clock && total > 0 && (
         <div className="kk-line-ends num" aria-hidden>
-          <span>{clockAt(startedAt, 0).slice(0, 5)}</span>
-          <span>{clockAt(startedAt, total).slice(0, 5)}</span>
+          <span>{clock(0).slice(0, 5)}</span>
+          <span>{clock(total).slice(0, 5)}</span>
         </div>
       )}
       {scrub && (
         <div className="kk-scrub" style={{ left: scrub.x }} aria-hidden>
-          <span className="num">{startedAt ? clockAt(startedAt, scrub.ms) : timerText(scrub.ms)}</span>
+          <span className="num">{clock ? clock(scrub.ms) : timerText(scrub.ms)}</span>
         </div>
       )}
     </div>
@@ -791,6 +793,8 @@ function ReviewRow({ compact, sessionId, folder, onNew }: { compact: boolean; se
   const setExportFor = useUi((s) => s.setExportFor);
   const more = async () => {
     const entries: MenuEntry[] = [
+      { text: t("continueRecording"), enabled: useRecording.getState().state === "ready", action: () => void continueRecording(sessionId) },
+      "separator",
       { text: t("copyForAgent"), action: () => void copy("agent", sessionId) },
       { text: t("copyMarkdown"), action: () => void copy("markdown", sessionId) },
       "separator",

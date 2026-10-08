@@ -25,10 +25,12 @@ pub enum Piece<'a> {
     Data(&'a [f32]),
 }
 
-/// Aligns one stream (one device rate, interleaved frames) to wall-clock time since `t0`.
+/// Aligns one stream (one device rate, interleaved frames) to wall-clock time since `t0`. `t0` is
+/// signed: a recording that continues a saved session (FR-08) starts at that session's end, which
+/// may lie before the PC last started, where QPC time begins.
 #[derive(Debug)]
 pub struct StreamClock {
-    t0_100ns: u64,
+    t0_100ns: i64,
     rate: u32,
     channels: u16,
     /// Frame index (at `rate`) where the next buffer is expected to start.
@@ -37,12 +39,12 @@ pub struct StreamClock {
 }
 
 impl StreamClock {
-    pub fn new(t0_100ns: u64, rate: u32, channels: u16) -> Self {
+    pub fn new(t0_100ns: i64, rate: u32, channels: u16) -> Self {
         Self::with_position(t0_100ns, rate, channels, 0)
     }
 
     /// A clock that continues an existing stream (the device format changed mid-session).
-    pub fn with_position(t0_100ns: u64, rate: u32, channels: u16, next_frame: u64) -> Self {
+    pub fn with_position(t0_100ns: i64, rate: u32, channels: u16, next_frame: u64) -> Self {
         Self { t0_100ns, rate, channels, next_frame, stats: ClockStats::default() }
     }
 
@@ -64,7 +66,7 @@ impl StreamClock {
     }
 
     fn frame_at(&self, qpc_100ns: u64) -> u64 {
-        let elapsed = qpc_100ns.saturating_sub(self.t0_100ns) as u128;
+        let elapsed = (qpc_100ns as i64).saturating_sub(self.t0_100ns).max(0) as u128;
         (elapsed * self.rate as u128 / 10_000_000) as u64
     }
 
@@ -132,6 +134,7 @@ mod tests {
     use super::*;
 
     const T0: u64 = 1_000_000_000; // arbitrary QPC origin, 100 ns units
+    const ZERO: i64 = T0 as i64;
 
     /// Places a buffer and materializes the result, as the tests read it.
     fn place(c: &mut StreamClock, qpc: u64, samples: &[f32], silent: bool, out: &mut Vec<f32>) {
@@ -147,8 +150,19 @@ mod tests {
     }
 
     #[test]
+    fn a_zero_before_boot_still_places_frames() {
+        // A continued session's zero 2 s before QPC time began (FR-08): its first frames, 1 s
+        // after boot, sit 3 s into the session.
+        let mut c = StreamClock::with_position(-20_000_000, 1000, 1, 3000);
+        let mut out = Vec::new();
+        place(&mut c, 10_000_000, &[1.0; 10], false, &mut out);
+        assert_eq!((out.len(), c.position_ms()), (10, 3010));
+        assert_eq!(c.stats, ClockStats::default());
+    }
+
+    #[test]
     fn contiguous_buffers_pass_through() {
-        let mut c = StreamClock::new(T0, 1000, 1);
+        let mut c = StreamClock::new(ZERO, 1000, 1);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[1.0; 10], false, &mut out);
         place(&mut c, qpc_ms(10), &[2.0; 10], false, &mut out);
@@ -159,7 +173,7 @@ mod tests {
 
     #[test]
     fn first_buffer_late_is_padded_from_t0() {
-        let mut c = StreamClock::new(T0, 1000, 2);
+        let mut c = StreamClock::new(ZERO, 1000, 2);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(300), &[0.5; 20], false, &mut out);
         // 300 frames of stereo zeros, then 10 frames of data.
@@ -171,7 +185,7 @@ mod tests {
 
     #[test]
     fn small_jitter_is_tolerated() {
-        let mut c = StreamClock::new(T0, 1000, 1);
+        let mut c = StreamClock::new(ZERO, 1000, 1);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[1.0; 10], false, &mut out);
         place(&mut c, qpc_ms(25), &[1.0; 10], false, &mut out); // 15 ms late: jitter
@@ -184,7 +198,7 @@ mod tests {
 
     #[test]
     fn gap_over_20ms_is_filled_with_zeros() {
-        let mut c = StreamClock::new(T0, 1000, 1);
+        let mut c = StreamClock::new(ZERO, 1000, 1);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[1.0; 10], false, &mut out);
         place(&mut c, qpc_ms(50), &[1.0; 10], false, &mut out);
@@ -195,7 +209,7 @@ mod tests {
 
     #[test]
     fn overlap_drops_the_overlapping_samples() {
-        let mut c = StreamClock::new(T0, 1000, 1);
+        let mut c = StreamClock::new(ZERO, 1000, 1);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[1.0; 100], false, &mut out);
         let data: Vec<f32> = (0..50).map(|i| i as f32).collect();
@@ -208,7 +222,7 @@ mod tests {
 
     #[test]
     fn silent_flag_yields_zeros_of_stated_length() {
-        let mut c = StreamClock::new(T0, 1000, 2);
+        let mut c = StreamClock::new(ZERO, 1000, 2);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[0.9; 40], true, &mut out);
         assert_eq!(out, vec![0.0; 40]);
@@ -217,7 +231,7 @@ mod tests {
 
     #[test]
     fn pad_until_advances_a_quiet_stream() {
-        let mut c = StreamClock::new(T0, 1000, 1);
+        let mut c = StreamClock::new(ZERO, 1000, 1);
         let mut out = Vec::new();
         place(&mut c, qpc_ms(0), &[1.0; 10], false, &mut out);
         assert_eq!(c.pad_until(qpc_ms(500)), 490);

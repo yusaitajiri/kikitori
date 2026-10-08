@@ -214,6 +214,23 @@ pub async fn start_recording(app: AppHandle, source: SourceConfig, title: Option
     .await
 }
 
+/// Records more onto a saved session (FR-08).
+#[tauri::command]
+pub async fn continue_recording(app: AppHandle, session_id: String, source: SourceConfig) -> AppResult<StartResponse> {
+    blocking(app, move |app, st| {
+        #[cfg(windows)]
+        {
+            recorder::continue_session(app, st, source, session_id)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (app, st, source, session_id);
+            Err(AppError::internal("recording needs Windows"))
+        }
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn stop_recording(app: AppHandle) -> AppResult<()> {
     blocking(app, recorder::stop).await

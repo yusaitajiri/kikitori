@@ -48,6 +48,19 @@ impl LevelWriter {
         Ok(Self { out, next: 0, last: [0, 0] })
     }
 
+    /// Carries on a saved session's file (FR-08); a missing or unreadable one starts anew.
+    pub fn open_append(folder: &Path) -> std::io::Result<Self> {
+        let path = folder.join(LEVELS_FILE);
+        let len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let header_ok = std::fs::read(&path).is_ok_and(|b| b.starts_with(MAGIC));
+        if !header_ok {
+            return Self::create(folder);
+        }
+        let out = BufWriter::new(std::fs::OpenOptions::new().append(true).open(&path)?);
+        // A crash may have left half a reading; the next one is written whole after it.
+        Ok(Self { out, next: (len - MAGIC.len() as u64) / 2, last: [0, 0] })
+    }
+
     /// The levels heard at session time `t_ms`, in dBFS (`FLOOR_DBFS` for a side not recorded).
     pub fn push(&mut self, t_ms: u64, others: f32, me: f32) -> std::io::Result<()> {
         let index = t_ms / STEP_MS;
@@ -135,6 +148,25 @@ mod tests {
         assert_eq!(r[4], [-12.0, -60.0]);
         assert!(r[5..20].iter().all(|x| *x == [FLOOR_DBFS, FLOOR_DBFS]));
         assert_eq!(r[20], [-6.0, -6.0]);
+    }
+
+    #[test]
+    fn a_continued_session_appends_after_its_readings() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut first = LevelWriter::create(dir.path()).unwrap();
+        first.push(0, -6.0, FLOOR_DBFS).unwrap();
+        first.push(100, -6.0, FLOOR_DBFS).unwrap();
+        first.flush().unwrap();
+        drop(first);
+        // Continued at 300 ms: the step in between stays silent.
+        let mut more = LevelWriter::open_append(dir.path()).unwrap();
+        more.push(300, FLOOR_DBFS, -12.0).unwrap();
+        more.flush().unwrap();
+        let r = read(dir.path()).unwrap();
+        assert_eq!(r.len(), 4);
+        assert_eq!(r[1], [-6.0, FLOOR_DBFS]);
+        assert_eq!(r[2], [FLOOR_DBFS, FLOOR_DBFS]);
+        assert_eq!(r[3], [FLOOR_DBFS, -12.0]);
     }
 
     #[test]

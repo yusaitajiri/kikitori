@@ -141,7 +141,7 @@ export type Screenshot = {
   caption?: string;
 };
 
-export type MarkerType = "paused" | "resumed" | "source_reattached" | "unprocessed" | "cut" | "source_changed";
+export type MarkerType = "paused" | "resumed" | "source_reattached" | "unprocessed" | "cut" | "source_changed" | "continued";
 
 export type Marker = { id: string; tMs: number; type: MarkerType; detail?: string };
 
@@ -167,6 +167,8 @@ export type Session = {
   unprocessedMs?: number;
   /** The project's ID (FR-64). */
   project?: string;
+  /** Later recordings onto the session (FR-08). */
+  continued?: { atMs: number; startedAt: string }[];
 };
 
 /** A named, coloured group of sessions (FR-64); `color` is one of `PROJECT_COLORS`. */
