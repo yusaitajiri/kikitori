@@ -140,8 +140,8 @@ the reference for UI changes.
   the start screen (the red dot with 開始, the source picker), the recording (a header that stays
   in place with the title and the source, the transcript, the live line) and the finished
   session (header, transcript, the session's line, copy and export). The recording's title
-  renames on a click; its source opens the picker, where a change switches the source (FR-17).
-  The compact window has no room for the header: there the title bar's 録音中 opens the picker.
+  renames on a click; its source is a dropdown, where a pick switches the source (FR-17). The
+  compact window has no room for the header: there the title bar's 録音中 opens a native menu.
 - **Rare actions** (Markdown copy, Agent用, exports, history, settings) sit in the … menu, a
   native popup so it fits the compact window.
 - **Errors** are a banner at the top with one action, e.g. 「マイクへのアクセスがオフです [設定を開く]」

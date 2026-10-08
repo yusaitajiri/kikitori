@@ -18,8 +18,6 @@ type UiStore = {
   toasts: Toast[];
   flash: number;
   confirmQuit: boolean;
-  /** The source picker over the recording view, to switch what is recorded (FR-17). */
-  sourcePanel: boolean;
   /** The new-project dialog, with the sessions to put in the project once made (FR-64). */
   newProject?: { sessionIds: string[]; done?: (id: string) => void; n: number };
   go: (view: View, opts?: { tab?: SettingsTab; sessionId?: string }) => void;
@@ -29,7 +27,6 @@ type UiStore = {
   flashBorder: () => void;
   setConfirmQuit: (v: boolean) => void;
   setExportFor: (id?: string) => void;
-  setSourcePanel: (open: boolean) => void;
   askNewProject: (sessionIds?: string[], done?: (id: string) => void) => void;
 };
 
@@ -42,7 +39,6 @@ export const useUi = create<UiStore>((set) => ({
   toasts: [],
   flash: 0,
   confirmQuit: false,
-  sourcePanel: false,
   go: (view, opts) =>
     set((s) => ({
       view,
@@ -64,6 +60,5 @@ export const useUi = create<UiStore>((set) => ({
   flashBorder: () => set((s) => ({ flash: s.flash + 1 })),
   setConfirmQuit: (confirmQuit) => set({ confirmQuit }),
   setExportFor: (exportFor) => set({ exportFor }),
-  setSourcePanel: (sourcePanel) => set({ sourcePanel }),
   askNewProject: (sessionIds, done) => set({ newProject: sessionIds ? { sessionIds, done, n: nextId++ } : undefined }),
 }));

@@ -2,14 +2,11 @@ import { AppWindow, Check, ChevronDown, Mic, MonitorSpeaker, RefreshCw } from "l
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { commands } from "../ipc/commands";
-import type { AudioApp, SourceConfig, SourceMode } from "../ipc/types";
+import type { AudioApp, SourceMode } from "../ipc/types";
 import { reportError } from "../lib/actions";
-import i18n from "../i18n";
 import { isBusy, useRecording } from "../store/recording";
 import { useSettings } from "../store/settings";
 import { useSource } from "../store/source";
-import { useUi } from "../store/ui";
 import { AppWave } from "./AppWave";
 import { IconButton, SwitchMark } from "./ui";
 
@@ -23,9 +20,26 @@ export function AppIcon({ src, size = 20 }: { src?: string; size?: number }) {
 
 /**
  * A list floating over everything (a portal), under its anchor, or above it when there is no room
- * below. It is open while `rect` (the anchor's box when it was opened) is set.
+ * below. It is open while `rect` (the anchor's box when it was opened) is set. It is as wide as
+ * the anchor, or `minWidth`; `end` lines up its right edge with the anchor's.
  */
-function Popover({ anchor, rect, onClose, label, children }: { anchor: RefObject<HTMLElement | null>; rect: DOMRect | null; onClose: () => void; label: string; children: ReactNode }) {
+function Popover({
+  anchor,
+  rect,
+  onClose,
+  label,
+  children,
+  minWidth = 0,
+  align = "start",
+}: {
+  anchor: RefObject<HTMLElement | null>;
+  rect: DOMRect | null;
+  onClose: () => void;
+  label: string;
+  children: ReactNode;
+  minWidth?: number;
+  align?: "start" | "end";
+}) {
   const list = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   const open = !!rect;
@@ -62,6 +76,8 @@ function Popover({ anchor, rect, onClose, label, children }: { anchor: RefObject
   const above = rect.top - 8;
   const up = below < 160 && above > below;
   const maxHeight = Math.min(300, up ? above : below);
+  const width = Math.min(Math.max(rect.width, minWidth), window.innerWidth - 16);
+  const left = Math.max(8, Math.min(align === "end" ? rect.right - width : rect.left, window.innerWidth - 8 - width));
   const onListKey = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
@@ -76,7 +92,7 @@ function Popover({ anchor, rect, onClose, label, children }: { anchor: RefObject
       aria-label={label}
       onKeyDown={onListKey}
       className="fixed z-[60] animate-pop overflow-y-auto rounded-2xl border border-line bg-surface p-1 shadow-float"
-      style={{ left: rect.left, width: rect.width, maxHeight, ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) }}
+      style={{ left, width, maxHeight, ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) }}
     >
       {children}
     </div>,
@@ -118,18 +134,55 @@ const fieldClass = (dense: boolean, open = false) =>
     open ? "border-fg" : "border-line hover:border-line-strong"
   }`;
 
+/** The sources to pick from: システム全体, マイクだけ, then the apps, those playing first (FR-11). */
+function SourceOptions({ onPick }: { onPick: (mode: SourceMode, app?: AudioApp) => void }) {
+  const { t } = useTranslation();
+  const src = useSource();
+  const appSupported = useSettings((s) => s.info?.appLoopbackSupported ?? true);
+  const withSession = src.apps.filter((a) => a.hasSession);
+  const others = src.apps.filter((a) => !a.hasSession);
+  const isApp = (a: AudioApp) => src.mode === "app" && (src.app?.rootPid ? a.rootPid === src.app.rootPid : a.exe.toLowerCase() === src.app?.exe.toLowerCase());
+  const appOption = (a: AudioApp) => (
+    <Option
+      key={a.rootPid}
+      selected={isApp(a)}
+      disabled={!appSupported}
+      title={appSupported ? undefined : t("win11Required")}
+      onPick={() => onPick("app", a)}
+      icon={<AppIcon src={a.iconDataUrl} size={20} />}
+      label={a.name}
+      extra={a.hasSession && <AppWave pid={a.rootPid} />}
+    />
+  );
+  return (
+    <>
+      <Option selected={src.mode === "system"} onPick={() => onPick("system")} icon={<MonitorSpeaker size={18} />} label={t("srcSystem")} />
+      <Option selected={src.mode === "mic"} onPick={() => onPick("mic")} icon={<Mic size={18} />} label={t("srcMicOnly")} />
+      <Group
+        action={
+          <IconButton size="sm" label={t("refresh")} onClick={() => src.refreshApps()} disabled={src.loadingApps} className="!size-6">
+            <RefreshCw size={13} className={src.loadingApps ? "animate-spin" : ""} />
+          </IconButton>
+        }
+      >
+        {t("srcApps")}
+      </Group>
+      {withSession.map(appOption)}
+      {others.length > 0 && <Group>{t("otherApps")}</Group>}
+      {others.map(appOption)}
+      {src.apps.length === 0 && <div className="px-2.5 py-3 text-center text-[12px] text-muted">{src.loadingApps ? t("loading") : t("noApps")}</div>}
+    </>
+  );
+}
+
 /** What 相手 is: an app, everything the PC plays, or nothing but the mic (FR-10, FR-11). */
 function SourceField({ dense }: { dense: boolean }) {
   const { t } = useTranslation();
   const src = useSource();
-  const appSupported = useSettings((s) => s.info?.appLoopbackSupported ?? true);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const open = !!rect;
   const anchor = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const withSession = src.apps.filter((a) => a.hasSession);
-  const others = src.apps.filter((a) => !a.hasSession);
-  const isApp = (a: AudioApp) => src.mode === "app" && (src.app?.rootPid ? a.rootPid === src.app.rootPid : a.exe.toLowerCase() === src.app?.exe.toLowerCase());
   const pick = (mode: SourceMode, app?: AudioApp) => {
     if (app) src.setApp(app);
     src.setMode(mode);
@@ -151,19 +204,6 @@ function SourceField({ dense }: { dense: boolean }) {
     name = t("srcMicOnly");
   }
 
-  const appOption = (a: AudioApp) => (
-    <Option
-      key={a.rootPid}
-      selected={isApp(a)}
-      disabled={!appSupported}
-      title={appSupported ? undefined : t("win11Required")}
-      onPick={() => pick("app", a)}
-      icon={<AppIcon src={a.iconDataUrl} size={20} />}
-      label={a.name}
-      extra={a.hasSession && <AppWave pid={a.rootPid} />}
-    />
-  );
-
   return (
     <div ref={anchor} className="min-w-0">
       <button
@@ -184,21 +224,7 @@ function SourceField({ dense }: { dense: boolean }) {
         <ChevronDown size={15} className={`shrink-0 text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       <Popover anchor={anchor} rect={rect} onClose={() => setRect(null)} label={t("chooseSource")}>
-        <Option selected={src.mode === "system"} onPick={() => pick("system")} icon={<MonitorSpeaker size={18} />} label={t("srcSystem")} />
-        <Option selected={src.mode === "mic"} onPick={() => pick("mic")} icon={<Mic size={18} />} label={t("srcMicOnly")} />
-        <Group
-          action={
-            <IconButton size="sm" label={t("refresh")} onClick={() => src.refreshApps()} disabled={src.loadingApps} className="!size-6">
-              <RefreshCw size={13} className={src.loadingApps ? "animate-spin" : ""} />
-            </IconButton>
-          }
-        >
-          {t("srcApps")}
-        </Group>
-        {withSession.map(appOption)}
-        {others.length > 0 && <Group>{t("otherApps")}</Group>}
-        {others.map(appOption)}
-        {src.apps.length === 0 && <div className="px-2.5 py-3 text-center text-[12px] text-muted">{src.loadingApps ? t("loading") : t("noApps")}</div>}
+        <SourceOptions onPick={pick} />
       </Popover>
     </div>
   );
@@ -263,55 +289,22 @@ function MicField({ dense, only }: { dense: boolean; only: boolean }) {
   );
 }
 
-/** A source choice as the recorder compares it: which app, not which of its processes. */
-const sourceKey = (c: SourceConfig) => JSON.stringify([c.mode, c.app?.exe.toLowerCase() ?? null, c.includeMic, c.micDeviceId ?? null]);
-
-/**
- * While recording, each change of the choice switches what is recorded at once (FR-17); if the
- * new source cannot start, the recording keeps the old one and the choice goes back to it.
- */
-function useLiveSwitch(live: boolean) {
-  useEffect(() => {
-    if (!live) return;
-    let applied = useSource.getState();
-    let key = sourceKey(applied.config());
-    return useSource.subscribe((s) => {
-      const config = s.config();
-      const next = sourceKey(config);
-      if (next === key || (config.mode === "app" && !config.app)) return;
-      const before = applied;
-      applied = s;
-      key = next;
-      commands
-        .switchSource(config)
-        .then(() => useUi.getState().toast(i18n.t("sourceSwitched")))
-        .catch((e) => {
-          reportError(e);
-          applied = before;
-          key = sourceKey(before.config());
-          useSource.setState({ mode: before.mode, app: before.app, includeMic: before.includeMic, micDeviceId: before.micDeviceId });
-        });
-    });
-  }, [live]);
-}
-
 /**
  * What to listen to (an app, everything the PC plays, or the mic alone), and whether it is a
  * conversation: then the mic records your voice too and the transcript names the lines 相手 and
- * 自分. While recording it is locked, unless `live`: then a change switches the recording's source.
+ * 自分. Locked while recording; the recording's header switches the source instead.
  */
-export function SourcePicker({ dense = false, live = false }: { dense?: boolean; live?: boolean }) {
+export function SourcePicker({ dense = false }: { dense?: boolean }) {
   const { t } = useTranslation();
   const busy = isBusy(useRecording((s) => s.state));
   const { mode, refreshApps } = useSource();
-  useLiveSwitch(live);
 
   useEffect(() => {
     void refreshApps();
   }, [refreshApps]);
 
   return (
-    <fieldset disabled={busy && !live} className={`grid min-w-0 ${dense ? "gap-1.5" : "gap-2"}`}>
+    <fieldset disabled={busy} className={`grid min-w-0 ${dense ? "gap-1.5" : "gap-2"}`}>
       <legend className="sr-only">{t("source")}</legend>
       <SourceField dense={dense} />
       <MicField dense={dense} only={mode === "mic"} />
@@ -319,7 +312,7 @@ export function SourcePicker({ dense = false, live = false }: { dense?: boolean;
   );
 }
 
-/** The choice in one line, `Zoom · 会話`, opening the full picker. */
+/** The choice in one line, `Zoom · 会話`, opening the picker. */
 export function SourceSummary({ onOpen, open, className = "" }: { onOpen: () => void; open: boolean; className?: string }) {
   const { t } = useTranslation();
   const { mode, app, includeMic } = useSource();
@@ -346,11 +339,57 @@ export function SourceSummary({ onOpen, open, className = "" }: { onOpen: () => 
 }
 
 /**
- * The full picker over the window under the title bar (a portal, so the page's own layers don't
- * cover it): before a recording in the compact window, and while recording, where a change
- * switches the source at once.
+ * The recording's source as a dropdown under its one line (FR-17): the sources, and 会話として録音
+ * under them. A pick switches the source at once (`useLiveSource`).
  */
-export function SourcePanel({ onClose, live = false, dense = false }: { onClose: () => void; live?: boolean; dense?: boolean }) {
+export function SourceDropdown({ className = "" }: { className?: string }) {
+  const { t } = useTranslation();
+  const src = useSource();
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const anchor = useRef<HTMLDivElement>(null);
+  const pick = (mode: SourceMode, app?: AudioApp) => {
+    if (app) src.setApp(app);
+    src.setMode(mode);
+    setRect(null);
+    anchor.current?.querySelector<HTMLElement>("[aria-haspopup]")?.focus();
+  };
+  return (
+    <div ref={anchor} className={className}>
+      <SourceSummary
+        className="!h-9 w-full"
+        open={!!rect}
+        onOpen={() => {
+          if (!rect) void src.refreshApps();
+          setRect(rect ? null : (anchor.current?.getBoundingClientRect() ?? null));
+        }}
+      />
+      <Popover anchor={anchor} rect={rect} onClose={() => setRect(null)} label={t("switchSource")} minWidth={280} align="end">
+        <SourceOptions onPick={pick} />
+        {src.mode !== "mic" && (
+          <div role="presentation" className="mt-1 border-t border-line pt-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={src.includeMic}
+              onClick={() => src.setIncludeMic(!src.includeMic)}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+            >
+              <Mic size={18} className={src.includeMic ? "text-fg" : "text-muted"} aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{t("conversation")}</span>
+              <SwitchMark on={src.includeMic} />
+            </button>
+          </div>
+        )}
+      </Popover>
+    </div>
+  );
+}
+
+/**
+ * The full picker over the window under the title bar (a portal, so the page's own layers don't
+ * cover it): the compact window's way to choose before a recording.
+ */
+export function SourcePanel({ onClose, dense = false }: { onClose: () => void; dense?: boolean }) {
   const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -361,12 +400,12 @@ export function SourcePanel({ onClose, live = false, dense = false }: { onClose:
     <div className="fixed inset-x-0 top-10 bottom-0 z-30 animate-fade-in overflow-y-auto bg-bg px-3 pt-0.5 pb-2">
       <div className={`mx-auto w-full ${dense ? "" : "max-w-[380px] pt-2"}`}>
         <div className="mb-1 flex items-center justify-between pl-0.5">
-          <span className="text-[12px] font-semibold text-muted">{live ? t("switchSource") : t("listenTo")}</span>
+          <span className="text-[12px] font-semibold text-muted">{t("listenTo")}</span>
           <IconButton size="sm" label={t("done")} onClick={onClose} className="!text-fg">
             <Check size={16} strokeWidth={2.5} />
           </IconButton>
         </div>
-        <SourcePicker dense={dense} live={live} />
+        <SourcePicker dense={dense} />
       </div>
     </div>,
     document.body,

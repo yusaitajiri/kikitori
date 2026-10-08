@@ -419,10 +419,16 @@ found a reason to deviate.
 - **The recording keeps a header**: the title (click to rename, as in a finished session) and
   the source as one line (`Zoom · 会話`), above the transcript and outside its scroll, so both stay
   in view in a long session. It is small (one line, 15 px title) because the transcript is what
-  the window is for. The source opens the same picker as before a recording, over the window
-  under the title bar; while recording each change switches at once (one tap, no 適用 button),
-  and a toast confirms it. The compact window has no room for a header, so its title bar's
-  録音中 tag opens the picker; away from the main view the tag still leads back to the recording.
+  the window is for. The source is a dropdown under that line, right-aligned and at least 280 px
+  wide, with the same rows as the start screen's list (the apps with their sound) and
+  「会話として録音」 as a switch under them; each change switches at once (one tap, no 適用
+  button), and a toast confirms it. Not the start screen's picker over the whole window: a
+  dropdown keeps the transcript in view. The compact window has no room for a header or a
+  dropdown, so its title bar's 録音中 tag opens a native menu with the same choices, which may
+  reach past the window; away from the main view the tag still leads back to the recording. The
+  switching itself (`useLiveSource`) runs for the whole recording, whichever control changed the
+  choice, and first takes the choice from the settings without switching, since a recording
+  started by the hotkey uses the last-used source the picker never showed.
 - **The star** sits between the camera and the cut while recording, and on every line's hover
   actions (live too, unlike editing). An important line has an ink stroke in the left margin
   and semibold text; red stays the voice you hear. The compact window's two lines show a star.

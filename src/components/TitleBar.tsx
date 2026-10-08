@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { commands } from "../ipc/commands";
 import { sourcesText } from "../lib/format";
 import { backOf, PLACES, placeOf } from "../lib/nav";
+import { sourceMenu } from "../lib/sourceMenu";
 import { isBusy, useRecording } from "../store/recording";
 import { useSettings } from "../store/settings";
 import { useUi } from "../store/ui";
@@ -20,12 +21,11 @@ export function Brand() {
 /**
  * What is recording, in place of the name while a recording runs: a red dot (grey while paused or
  * finishing), the state and the source. Away from the main view it leads back to the recording;
- * in the compact window's main view, which has no room for the recording's header, it opens the
- * picker to switch the source (FR-17).
+ * in the compact window's main view, which has no room for the recording's header, it opens a
+ * native menu to switch the source (FR-17).
  */
 function LiveTag({ compact }: { compact: boolean }) {
   const { t } = useTranslation();
-  const setSourcePanel = useUi((s) => s.setSourcePanel);
   const state = useRecording((s) => s.state);
   const recorded = useRecording((s) => s.sources);
   const sources = sourcesText(recorded, t);
@@ -42,7 +42,7 @@ function LiveTag({ compact }: { compact: boolean }) {
   );
   if (view === "main" && compact && state !== "finishing") {
     return (
-      <button type="button" onClick={() => setSourcePanel(true)} title={t("switchSource")} className="-mx-1 flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-2">
+      <button type="button" onClick={() => void sourceMenu()} aria-haspopup="menu" title={t("switchSource")} className="-mx-1 flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-2">
         {body}
       </button>
     );

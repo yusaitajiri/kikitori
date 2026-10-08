@@ -6,12 +6,12 @@ import { Banners, Toasts } from "./components/Notices";
 import { Deck } from "./components/Deck";
 import { LiveHeader } from "./components/LiveHeader";
 import { NewProjectDialog } from "./components/Projects";
-import { SourcePanel } from "./components/SourcePicker";
 import { SessionHeader } from "./components/SessionHeader";
 import { StartScreen } from "./components/StartScreen";
 import { TitleBar } from "./components/TitleBar";
 import { Spinner } from "./components/ui";
 import i18n from "./i18n";
+import { useLiveSource } from "./hooks/useLiveSource";
 import { commands } from "./ipc/commands";
 import { on } from "./ipc/events";
 import type { StatePayload, UiState } from "./ipc/types";
@@ -117,9 +117,6 @@ function MainView({ compact }: { compact: boolean }) {
   const sessionId = useTranscript((s) => s.sessionId);
   const folder = useTranscript((s) => s.folder);
   const phase = phaseOf(state, sessionId);
-  const sourcePanel = useUi((s) => s.sourcePanel);
-  const setSourcePanel = useUi((s) => s.setSourcePanel);
-  const switching = sourcePanel && (state === "recording" || state === "paused");
 
   // The deck stays mounted from the start dot to the finished session, so its line can move
   // between them; only what is above it changes.
@@ -152,7 +149,6 @@ function MainView({ compact }: { compact: boolean }) {
         {body}
       </div>
       <Deck compact={compact} phase={phase} sessionId={sessionId} folder={folder} onNew />
-      {switching && <SourcePanel live dense={compact} onClose={() => setSourcePanel(false)} />}
     </>
   );
 }
@@ -167,6 +163,7 @@ export default function App() {
   const state = useRecording((s) => s.state);
 
   useBackendEvents();
+  useLiveSource(state === "recording" || state === "paused", useRecording((s) => s.sessionId));
 
   useEffect(() => {
     void (async () => {
