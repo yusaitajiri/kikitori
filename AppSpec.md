@@ -514,7 +514,8 @@ failure, benchmark results) lives in `state.json`.
 | Installer | ≤ 15 MB |
 | Accuracy | Streaming CER at most 3 points worse than one pass over the same file with the same model |
 
-**Privacy.** Audio never leaves the PC and is not saved; buffers are freed once transcribed. The
+**Privacy.** Audio never leaves the PC. It is saved only as each recording's sound file in its
+own session folder (FR-09, can be turned off); other buffers are freed once transcribed. The
 only network use is model downloads (Hugging Face) and the daily update check (GitHub Releases).
 No telemetry. Logs hold IDs, lengths and timings, never transcript text. The wizard suggests
 telling participants before recording.

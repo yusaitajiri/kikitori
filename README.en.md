@@ -41,8 +41,6 @@ Setup starts on first launch, in English unless Windows is set to Japanese.
 
 To change the app's language later: Settings → General → Language. If your meetings are in English, also set Settings → Transcription → Transcription language to English.
 
-Before you record anyone, let them know.
-
 ## Using it
 
 | To | Do this |
@@ -67,8 +65,8 @@ Before you record anyone, let them know.
 
 ## Privacy
 
-- Audio never leaves your PC. Recorded audio is discarded once it is transcribed and is never saved.
-- Only two things use the network: model downloads (huggingface.co) and a daily update check (GitHub).
+- Audio never leaves your PC. Each recording's sound is saved in its folder so you can listen back (about 11 MB an hour). Turn it off in **Settings → Audio** and it is discarded once transcribed.
+- The network is used only for model downloads (huggingface.co) and a daily update check (GitHub).
 - No telemetry.
 
 ## Troubleshooting
