@@ -517,8 +517,7 @@ failure, benchmark results) lives in `state.json`.
 **Privacy.** Audio never leaves the PC. It is saved only as each recording's sound file in its
 own session folder (FR-09, can be turned off); other buffers are freed once transcribed. The
 only network use is model downloads (Hugging Face) and the daily update check (GitHub Releases).
-No telemetry. Logs hold IDs, lengths and timings, never transcript text. The wizard suggests
-telling participants before recording.
+No telemetry. Logs hold IDs, lengths and timings, never transcript text.
 
 **Reliability.** The event log makes every session crash-safe; a panic hook logs and flushes the
 active session. A panicking ASR job resets the Whisper states and is retried once. A full disk

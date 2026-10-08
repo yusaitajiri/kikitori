@@ -97,7 +97,6 @@ export function SetupWizard() {
           <div className="space-y-3">
             <ShieldCheck size={28} className="text-fg" />
             <p>{t("wizardWelcomeBody")}</p>
-            <p className="rounded-xl border border-line p-3 text-xs leading-relaxed">{t("wizardConsent")}</p>
           </div>
         )}
 

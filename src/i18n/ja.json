@@ -238,7 +238,6 @@
   "checksumError": "ファイルが壊れています。もう一度ダウンロードしてください",
   "wizardWelcome": "ようこそ",
   "wizardWelcomeBody": "音声はこのPCの中だけで文字起こしします。",
-  "wizardConsent": "録音の前に、参加者に一言伝えましょう",
   "wizardModel": "モデルを選ぶ",
   "wizardDownload": "ダウンロード",
   "wizardMicTest": "マイクのテスト",
