@@ -8,6 +8,8 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 
 - A star button while recording marks the line being said as important, even before its text arrives; any line's star adds or removes the mark later. Exports and copies start important lines with ★, and the prompt for AI agents explains it.
 - Hotkeys for the important mark and the cut.
+- Switch the source while recording, without stopping; the transcript notes the switch.
+- The recording keeps a header with its title (click to rename) and its source.
 - A cut button while recording starts a new part of the session. The transcript shows the cut, Markdown exports head each part with `## HH:MM:SS`, and the PDF lists the parts in its outline.
 
 ### Changed

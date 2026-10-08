@@ -9,9 +9,9 @@ export type PartialItem = { kind: "partial"; id: string; source: SourceId; text:
 type Orderable = TimelineItem | PartialItem;
 
 const tieRank = (s: SourceId) => (s === "mic" ? 1 : 0); // 相手 before 自分
-// On a tie a resume, reattach or cut marker comes before the lines it precedes; pause and
-// unprocessed markers come after the lines they follow.
-const markerRank = (t: MarkerType) => (t === "resumed" || t === "source_reattached" || t === "cut" ? 0 : 3);
+// On a tie a resume, reattach, cut or source marker comes before the lines it precedes; pause
+// and unprocessed markers come after the lines they follow.
+const markerRank = (t: MarkerType) => (t === "paused" || t === "unprocessed" ? 3 : 0);
 
 function key(i: Orderable): [time: number, kind: number, source: number] {
   switch (i.kind) {

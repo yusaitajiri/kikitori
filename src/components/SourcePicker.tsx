@@ -2,11 +2,14 @@ import { AppWindow, Check, ChevronDown, Mic, MonitorSpeaker, RefreshCw } from "l
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { AudioApp, SourceMode } from "../ipc/types";
+import { commands } from "../ipc/commands";
+import type { AudioApp, SourceConfig, SourceMode } from "../ipc/types";
 import { reportError } from "../lib/actions";
+import i18n from "../i18n";
 import { isBusy, useRecording } from "../store/recording";
 import { useSettings } from "../store/settings";
 import { useSource } from "../store/source";
+import { useUi } from "../store/ui";
 import { AppWave } from "./AppWave";
 import { IconButton, SwitchMark } from "./ui";
 
@@ -260,25 +263,113 @@ function MicField({ dense, only }: { dense: boolean; only: boolean }) {
   );
 }
 
+/** A source choice as the recorder compares it: which app, not which of its processes. */
+const sourceKey = (c: SourceConfig) => JSON.stringify([c.mode, c.app?.exe.toLowerCase() ?? null, c.includeMic, c.micDeviceId ?? null]);
+
+/**
+ * While recording, each change of the choice switches what is recorded at once (FR-17); if the
+ * new source cannot start, the recording keeps the old one and the choice goes back to it.
+ */
+function useLiveSwitch(live: boolean) {
+  useEffect(() => {
+    if (!live) return;
+    let applied = useSource.getState();
+    let key = sourceKey(applied.config());
+    return useSource.subscribe((s) => {
+      const config = s.config();
+      const next = sourceKey(config);
+      if (next === key || (config.mode === "app" && !config.app)) return;
+      const before = applied;
+      applied = s;
+      key = next;
+      commands
+        .switchSource(config)
+        .then(() => useUi.getState().toast(i18n.t("sourceSwitched")))
+        .catch((e) => {
+          reportError(e);
+          applied = before;
+          key = sourceKey(before.config());
+          useSource.setState({ mode: before.mode, app: before.app, includeMic: before.includeMic, micDeviceId: before.micDeviceId });
+        });
+    });
+  }, [live]);
+}
+
 /**
  * What to listen to (an app, everything the PC plays, or the mic alone), and whether it is a
  * conversation: then the mic records your voice too and the transcript names the lines 相手 and
- * 自分. Locked while recording.
+ * 自分. While recording it is locked, unless `live`: then a change switches the recording's source.
  */
-export function SourcePicker({ dense = false }: { dense?: boolean }) {
+export function SourcePicker({ dense = false, live = false }: { dense?: boolean; live?: boolean }) {
   const { t } = useTranslation();
   const busy = isBusy(useRecording((s) => s.state));
   const { mode, refreshApps } = useSource();
+  useLiveSwitch(live);
 
   useEffect(() => {
     void refreshApps();
   }, [refreshApps]);
 
   return (
-    <fieldset disabled={busy} className={`grid min-w-0 ${dense ? "gap-1.5" : "gap-2"}`}>
+    <fieldset disabled={busy && !live} className={`grid min-w-0 ${dense ? "gap-1.5" : "gap-2"}`}>
       <legend className="sr-only">{t("source")}</legend>
       <SourceField dense={dense} />
       <MicField dense={dense} only={mode === "mic"} />
     </fieldset>
   );
 }
+
+/** The choice in one line, `Zoom · 会話`, opening the full picker. */
+export function SourceSummary({ onOpen, open, className = "" }: { onOpen: () => void; open: boolean; className?: string }) {
+  const { t } = useTranslation();
+  const { mode, app, includeMic } = useSource();
+  const two = mode !== "mic" && includeMic;
+  const icon = mode === "app" ? <AppIcon src={app?.iconDataUrl} size={18} /> : mode === "system" ? <MonitorSpeaker size={16} /> : <Mic size={16} />;
+  const name = mode === "app" ? (app?.name ?? t("chooseApp")) : mode === "system" ? t("srcSystem") : t("srcMicOnly");
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${t("chooseSource")}: ${name}`}
+      aria-expanded={open}
+      className={`flex h-10 min-w-0 items-center gap-2 rounded-[11px] border border-line bg-surface px-3 text-left transition-colors hover:border-line-strong ${className}`}
+    >
+      <span className="grid shrink-0 place-items-center">{icon}</span>
+      <span className="min-w-0 truncate text-[13px] font-semibold">{name}</span>
+      {two && <span className="shrink-0 text-[12px] text-muted">· {t("conversationShort")}</span>}
+      <span className="ml-auto flex shrink-0 items-center gap-2">
+        {mode === "app" && <AppWave pid={app?.rootPid} />}
+        <ChevronDown size={15} className="text-muted" />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * The full picker over the window under the title bar (a portal, so the page's own layers don't
+ * cover it): before a recording in the compact window, and while recording, where a change
+ * switches the source at once.
+ */
+export function SourcePanel({ onClose, live = false, dense = false }: { onClose: () => void; live?: boolean; dense?: boolean }) {
+  const { t } = useTranslation();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-x-0 top-10 bottom-0 z-30 animate-fade-in overflow-y-auto bg-bg px-3 pt-0.5 pb-2">
+      <div className={`mx-auto w-full ${dense ? "" : "max-w-[380px] pt-2"}`}>
+        <div className="mb-1 flex items-center justify-between pl-0.5">
+          <span className="text-[12px] font-semibold text-muted">{live ? t("switchSource") : t("listenTo")}</span>
+          <IconButton size="sm" label={t("done")} onClick={onClose} className="!text-fg">
+            <Check size={16} strokeWidth={2.5} />
+          </IconButton>
+        </div>
+        <SourcePicker dense={dense} live={live} />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+

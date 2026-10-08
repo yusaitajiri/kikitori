@@ -36,6 +36,8 @@ export const commands = {
   pauseRecording: () => invoke<void>("pause_recording"),
   resumeRecording: () => invoke<void>("resume_recording"),
   switchToSystem: () => invoke<void>("switch_to_system"),
+  /** Switches what is recorded without stopping (FR-17). */
+  switchSource: (source: SourceConfig) => invoke<void>("switch_source", { source }),
   takeScreenshot: () => invoke<{ id: string; tMs: number }>("take_screenshot"),
   addCut: () => invoke<void>("add_cut"),
   /** Marks the line being said as important; `false` when nothing has been said yet. */

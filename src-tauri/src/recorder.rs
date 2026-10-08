@@ -87,6 +87,8 @@ pub struct Active {
     pub store: Arc<SessionStore>,
     ctx: Arc<SessionCtx>,
     pub t0: u64,
+    /// What is being recorded, as chosen; switching the source changes it (FR-17).
+    config: SourceConfig,
     pub sources: RecordedSources,
     #[cfg(windows)]
     plan: Vec<PlannedSource>,
@@ -211,46 +213,17 @@ fn recorded_sources(config: &SourceConfig, app_name: &str) -> RecordedSources {
     RecordedSources { ids, app_name: (main == SourceId::App).then(|| app_name.to_string()) }
 }
 
-/// Starts a recording. Capture runs within a second; the model may still be loading.
+/// What a source choice captures, and how the session names it.
 #[cfg(windows)]
-pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option<String>) -> AppResult<StartResponse> {
-    if !matches!(&*st.recorder.lock(), Phase::Idle) {
-        return Err(AppError::internal("already recording"));
-    }
-    let settings = st.settings.read().clone();
-    let entry =
-        catalog::find(&settings.model_id).ok_or_else(|| AppError::new(ErrorCode::ModelMissing, "no model selected"))?;
-    let model_path = entry.path_in(&st.models_dir);
-    if !model_path.exists() {
-        return Err(AppError::new(ErrorCode::ModelMissing, format!("{} is not downloaded", entry.id)));
-    }
-    let status = st.worker.status();
-    if status.model_id.as_deref() != Some(entry.id.as_str())
-        || matches!(status.state, EngineState::Missing | EngineState::Failed)
-    {
-        st.load_selected_model();
-    }
-    if config.mode == SourceMode::App {
-        if !platform::app_loopback_supported() {
-            return Err(AppError::new(ErrorCode::AppLoopbackUnsupported, "app capture needs Windows 11"));
-        }
-        if config.app.is_none() {
-            return Err(AppError::internal("no app selected"));
-        }
-    }
+struct Planned {
+    plan: Vec<PlannedSource>,
+    infos: Vec<SourceInfo>,
+    /// The app's process while it runs, for screenshots of its window.
+    app_root_pid: Option<u32>,
+}
 
-    let started = Local::now();
-    let app_name = source_name(&config, settings.locale);
-    let title = title
-        .map(|t| t.trim().to_string())
-        .filter(|t| !t.is_empty())
-        .unwrap_or_else(|| paths::expand_title(&settings.output.title_template, &app_name, &started));
-    let root = PathBuf::from(&settings.output.root);
-    std::fs::create_dir_all(&root)?;
-    let folder = paths::unique_folder(&root, &paths::folder_name(&started, &title));
-    std::fs::create_dir_all(folder.join("images"))?;
-
-    // Plan sources and labels.
+#[cfg(windows)]
+fn plan_sources(config: &SourceConfig, app_name: &str) -> Planned {
     let mut plan: Vec<PlannedSource> = Vec::new();
     let mut infos: Vec<SourceInfo> = Vec::new();
     let mic_target = CaptureTarget::Mic { device_id: config.mic_device_id.clone() };
@@ -272,7 +245,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
             infos.push(SourceInfo { id: SourceId::System, label: OTHERS.into(), exe: None, device: None, name: None });
         }
         SourceMode::App => {
-            let a = config.app.clone().unwrap();
+            let a = config.app.clone().expect("checked: app mode has an app");
             // The app may not be running yet; capture waits for it (and reattaches, FR-14).
             let alive = a.root_pid != 0 && platform::process_alive(a.root_pid);
             let root_pid = if alive { a.root_pid } else { 0 };
@@ -286,7 +259,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
                 label: OTHERS.into(),
                 exe: std::path::Path::new(&a.exe).file_name().map(|f| f.to_string_lossy().into_owned()),
                 device: None,
-                name: Some(app_name.clone()),
+                name: Some(app_name.to_string()),
             });
         }
     }
@@ -294,6 +267,79 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         plan.push(PlannedSource { id: SourceId::Mic, target: mic_target });
         infos.push(SourceInfo { id: SourceId::Mic, label: ME.into(), exe: None, device: mic_name, name: None });
     }
+    Planned { plan, infos, app_root_pid }
+}
+
+/// Checks a source choice before anything starts.
+fn check_source(config: &SourceConfig) -> AppResult<()> {
+    if config.mode == SourceMode::App {
+        if !platform::app_loopback_supported() {
+            return Err(AppError::new(ErrorCode::AppLoopbackUnsupported, "app capture needs Windows 11"));
+        }
+        if config.app.is_none() {
+            return Err(AppError::internal("no app selected"));
+        }
+    }
+    Ok(())
+}
+
+/// The source as exports name it, in Japanese like the rest of an export: `Teams + マイク`.
+fn source_words(config: &SourceConfig, app_name: &str) -> String {
+    let main = match config.mode {
+        SourceMode::Mic => return "マイク".into(),
+        SourceMode::System => "システム全体",
+        SourceMode::App => app_name,
+    };
+    if config.include_mic { format!("{main} + マイク") } else { main.to_string() }
+}
+
+/// Remembers the source for the next recording and for the Start/Stop hotkey.
+fn remember_source(app: &AppHandle, st: &AppState, config: &SourceConfig) {
+    {
+        let mut s = st.settings.write();
+        s.source.mode = config.mode;
+        s.source.include_mic = config.include_mic;
+        s.source.mic_device_id = config.mic_device_id.clone();
+        if let Some(a) = &config.app {
+            s.source.app =
+                Some(LastApp { exe: a.exe.clone(), name: a.name.clone().unwrap_or_else(|| exe_stem(&a.exe)) });
+        }
+    }
+    st.persist_settings(app);
+}
+
+/// Starts a recording. Capture runs within a second; the model may still be loading.
+#[cfg(windows)]
+pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option<String>) -> AppResult<StartResponse> {
+    if !matches!(&*st.recorder.lock(), Phase::Idle) {
+        return Err(AppError::internal("already recording"));
+    }
+    let settings = st.settings.read().clone();
+    let entry =
+        catalog::find(&settings.model_id).ok_or_else(|| AppError::new(ErrorCode::ModelMissing, "no model selected"))?;
+    let model_path = entry.path_in(&st.models_dir);
+    if !model_path.exists() {
+        return Err(AppError::new(ErrorCode::ModelMissing, format!("{} is not downloaded", entry.id)));
+    }
+    let status = st.worker.status();
+    if status.model_id.as_deref() != Some(entry.id.as_str())
+        || matches!(status.state, EngineState::Missing | EngineState::Failed)
+    {
+        st.load_selected_model();
+    }
+    check_source(&config)?;
+
+    let started = Local::now();
+    let app_name = source_name(&config, settings.locale);
+    let title = title
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .unwrap_or_else(|| paths::expand_title(&settings.output.title_template, &app_name, &started));
+    let root = PathBuf::from(&settings.output.root);
+    std::fs::create_dir_all(&root)?;
+    let folder = paths::unique_folder(&root, &paths::folder_name(&started, &title));
+    std::fs::create_dir_all(folder.join("images"))?;
+    let Planned { plan, infos, app_root_pid } = plan_sources(&config, &app_name);
 
     let session_id = ulid::Ulid::generate().to_string();
     let t0 = platform::qpc_now_100ns();
@@ -351,6 +397,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         store,
         ctx,
         t0,
+        config: config.clone(),
         sources: recorded_sources(&config, &app_name),
         plan,
         running: Vec::new(),
@@ -385,18 +432,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
     let response = StartResponse { session_id: session_id.clone(), folder: folder.to_string_lossy().into_owned() };
     *st.recorder.lock() = Phase::Recording(Box::new(active));
 
-    // Remember the last-used source for the hotkey.
-    {
-        let mut s = st.settings.write();
-        s.source.mode = config.mode;
-        s.source.include_mic = config.include_mic;
-        s.source.mic_device_id = config.mic_device_id.clone();
-        if let Some(a) = &config.app {
-            s.source.app =
-                Some(LastApp { exe: a.exe.clone(), name: a.name.clone().unwrap_or_else(|| exe_stem(&a.exe)) });
-        }
-    }
-    st.persist_settings(app);
+    remember_source(app, st, &config);
     emit_state(app, st);
     tracing::info!("recording started: session {session_id}");
     Ok(response)
@@ -602,49 +638,65 @@ pub fn resume(app: &AppHandle, st: &AppState) -> AppResult<()> {
     Ok(())
 }
 
-/// 「システム全体に切り替える」 after the app-silence health check (section 7).
+/// Switches what is recorded without stopping (FR-17): capture restarts on the new source at
+/// this moment, the session gains the new source's name, and the timeline gets a marker. While
+/// paused, the new source starts on resume. If it cannot start, the old one carries on.
 #[cfg(windows)]
-pub fn switch_to_system(app: &AppHandle, st: &AppState) -> AppResult<()> {
+pub fn switch_source(app: &AppHandle, st: &AppState, config: SourceConfig) -> AppResult<()> {
+    check_source(&config)?;
+    let locale = st.settings.read().locale;
     let mut rec = st.recorder.lock();
     let Phase::Recording(active) = &mut *rec else { return Err(AppError::internal("not recording")) };
-    if !active.plan.iter().any(|p| p.id == SourceId::App) {
+    if active.config == config {
         return Ok(());
     }
     let now = active.now_ms();
     let paused = active.paused_at.is_some();
+    let app_name = source_name(&config, locale);
+    let Planned { plan, infos, app_root_pid } = plan_sources(&config, &app_name);
     if !paused {
         stop_sources(active);
     }
-    for p in active.plan.iter_mut() {
-        if p.id == SourceId::App {
-            p.id = SourceId::System;
-            p.target = CaptureTarget::System;
+    let old_plan = std::mem::replace(&mut active.plan, plan);
+    if !paused && let Err((source, err)) = start_sources(active, st, now) {
+        active.plan = old_plan;
+        if let Err((old, e)) = start_sources(active, st, now) {
+            tracing::error!("restarting {} after a failed switch: {e:#}", old.as_str());
         }
+        drop(rec);
+        emit_state(app, st);
+        return Err(AppError::new(ErrorCode::SourceLost, format!("{}: {err:#}", source.as_str())));
     }
     {
         let mut session = active.store.session.lock();
-        if !session.sources.iter().any(|s| s.id == SourceId::System) {
-            session.sources.push(SourceInfo {
-                id: SourceId::System,
-                label: OTHERS.into(),
-                exe: None,
-                device: None,
-                name: None,
-            });
+        for info in infos {
+            if !session.sources.contains(&info) {
+                session.sources.push(info);
+            }
         }
     }
-    for id in active.sources.ids.iter_mut() {
-        if *id == SourceId::App {
-            *id = SourceId::System;
-        }
-    }
-    active.sources.app_name = None;
-    if !paused && let Err((source, err)) = start_sources(active, st, now) {
-        return Err(AppError::new(ErrorCode::SourceLost, format!("{}: {err:#}", source.as_str())));
-    }
+    active.store.add_marker(now, MarkerKind::SourceChanged, Some(source_words(&config, &app_name)));
+    active.sources = recorded_sources(&config, &app_name);
+    active.app_root_pid = app_root_pid;
+    active.app_name = (config.mode == SourceMode::App).then(|| app_name.clone());
+    active.config = config.clone();
     drop(rec);
+    st.levels.clear();
+    remember_source(app, st, &config);
     emit_state(app, st);
     Ok(())
+}
+
+/// 「システム全体に切り替える」 after the app-silence health check (section 7).
+#[cfg(windows)]
+pub fn switch_to_system(app: &AppHandle, st: &AppState) -> AppResult<()> {
+    let config = match &*st.recorder.lock() {
+        Phase::Recording(a) if a.config.mode == SourceMode::App => {
+            SourceConfig { mode: SourceMode::System, app: None, ..a.config.clone() }
+        }
+        _ => return Ok(()),
+    };
+    switch_source(app, st, config)
 }
 
 /// Cut (FR-06): a new part of the session starts now. Works while paused too, so a break can
@@ -985,6 +1037,13 @@ mod tests {
         assert_eq!(source_name(&config(SourceMode::Mic, false), Locale::En), "Mic");
         // An app keeps its own name, here its executable's.
         assert_eq!(source_name(&config(SourceMode::App, true), Locale::En), "Zoom");
+    }
+
+    #[test]
+    fn a_switch_names_the_new_source_in_the_export_language() {
+        assert_eq!(source_words(&config(SourceMode::App, true), "Teams"), "Teams + マイク");
+        assert_eq!(source_words(&config(SourceMode::System, false), "x"), "システム全体");
+        assert_eq!(source_words(&config(SourceMode::Mic, true), "x"), "マイク");
     }
 
     #[test]

@@ -260,6 +260,23 @@ pub async fn switch_to_system(app: AppHandle) -> AppResult<()> {
     .await
 }
 
+/// Switches what is recorded without stopping (FR-17).
+#[tauri::command]
+pub async fn switch_source(app: AppHandle, source: SourceConfig) -> AppResult<()> {
+    blocking(app, move |app, st| {
+        #[cfg(windows)]
+        {
+            recorder::switch_source(app, st, source)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (app, st, source);
+            Ok(())
+        }
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn take_screenshot(app: AppHandle) -> AppResult<ShotResponse> {
     blocking(app, recorder::take_screenshot).await

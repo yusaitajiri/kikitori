@@ -93,6 +93,7 @@ items (section 19).
 | FR-14 | Sources | If the chosen app exits and starts again, reattach within 3 s and mark it. App capture can also start before the app is running. |
 | FR-15 | Sources | When the default output or mic device changes mid-recording, reopen the stream on the new one. |
 | FR-16 | Sources | Echo guard: drop 自分 lines that are the speakers picked up by the mic (section 8). |
+| FR-17 | Sources | Switch the source while recording, without stopping: capture restarts on the new source, the session lists it, and the timeline gets a `source_changed` marker. If it cannot start, the old source carries on. |
 | FR-20 | Transcription | Local Whisper through whisper.cpp. Language 日本語 (default), English or 自動. |
 | FR-21 | Transcription | Final lines appear within the latency targets of section 16. |
 | FR-22 | Transcription | Grey provisional text for the utterance in progress (GPU only). |
@@ -132,8 +133,11 @@ one red that means the voice you hear. `docs/DECISIONS.md` → UI explains every
 the reference for UI changes.
 
 - **Places.** Expanded: 録音 · 履歴 · 設定 in the title bar. The recording place has three phases:
-  the start screen (the red dot with 開始, the source picker), the recording (transcript over the
-  live line) and the finished session (header, transcript, the session's line, copy and export).
+  the start screen (the red dot with 開始, the source picker), the recording (a header that stays
+  in place with the title and the source, the transcript, the live line) and the finished
+  session (header, transcript, the session's line, copy and export). The recording's title
+  renames on a click; its source opens the picker, where a change switches the source (FR-17).
+  The compact window has no room for the header: there the title bar's 録音中 opens the picker.
 - **Rare actions** (Markdown copy, Agent用, exports, history, settings) sit in the … menu, a
   native popup so it fits the compact window.
 - **Errors** are a banner at the top with one action, e.g. 「マイクへのアクセスがオフです [設定を開く]」
@@ -154,7 +158,7 @@ full disk stops the recording and saves what exists.
 paused or finishing. Left-click shows or hides the window.
 
 **Hotkeys** are off until set in 設定 › ショートカット. When idle, the start hotkey starts with the
-last-used source; the screenshot hotkey shows 「録音中のみ使えます」.
+last-used source; the screenshot, important-mark and cut hotkeys show 「録音中のみ使えます」.
 
 **Setup wizard:** welcome (everything stays on this PC) → model → download and benchmark →
 10-second mic test → shortcuts (optional) → done.

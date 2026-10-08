@@ -42,7 +42,7 @@ impl ExportOptions {
         match self.labels {
             LabelMode::On => true,
             LabelMode::Off => false,
-            LabelMode::Auto => session.sources.len() > 1,
+            LabelMode::Auto => session.two_sides(),
         }
     }
 }
@@ -161,6 +161,7 @@ pub fn marker_text(session: &Session, marker: &Marker) -> String {
         MarkerKind::Paused => format!("{time} 一時停止"),
         MarkerKind::Resumed => format!("{time} 再開"),
         MarkerKind::Cut => format!("{time} 区切り"),
+        MarkerKind::SourceChanged => format!("{time} ソース変更: {}", marker.detail.as_deref().unwrap_or("?")),
         MarkerKind::Unprocessed => {
             format!("以降、未処理の音声 {} 秒", marker.detail.as_deref().unwrap_or("?"))
         }
@@ -250,6 +251,7 @@ pub(crate) mod test_support {
 mod tests {
     use super::test_support::*;
     use super::*;
+    use crate::session::model::SourceInfo;
     use crate::session::model::tests::seg;
 
     #[test]
@@ -337,6 +339,24 @@ mod tests {
             ),
             "{md}"
         );
+    }
+
+    #[test]
+    fn labels_follow_both_sides_not_the_number_of_sources() {
+        // Switched from one app to another (FR-17): two sources, one side, so no labels.
+        let mut s = session(vec![seg("seg_000001", SourceId::App, 0, 1000, "一。")], false);
+        s.sources.push(SourceInfo {
+            id: SourceId::App,
+            label: "相手".into(),
+            exe: None,
+            device: None,
+            name: Some("Teams".into()),
+        });
+        assert!(!ExportOptions::default().show_labels(&s));
+        assert!(ExportOptions::default().show_labels(&meeting()));
+        let marker =
+            Marker { id: "mk_0002".into(), t_ms: 0, kind: MarkerKind::SourceChanged, detail: Some("Teams".into()) };
+        assert_eq!(marker_text(&s, &marker), "15:13:05 ソース変更: Teams");
     }
 
     #[test]

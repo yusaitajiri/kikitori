@@ -132,6 +132,7 @@ pub fn run() {
             commands::pause_recording,
             commands::resume_recording,
             commands::switch_to_system,
+            commands::switch_source,
             commands::take_screenshot,
             commands::add_cut,
             commands::mark_current_line,

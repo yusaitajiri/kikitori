@@ -20,6 +20,7 @@
     "allow-pause-recording",
     "allow-resume-recording",
     "allow-switch-to-system",
+    "allow-switch-source",
     "allow-take-screenshot",
     "allow-add-cut",
     "allow-mark-current-line",

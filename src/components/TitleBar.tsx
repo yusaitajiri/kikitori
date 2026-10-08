@@ -19,10 +19,13 @@ export function Brand() {
 
 /**
  * What is recording, in place of the name while a recording runs: a red dot (grey while paused or
- * finishing), the state and the source. Away from the main view it leads back to the recording.
+ * finishing), the state and the source. Away from the main view it leads back to the recording;
+ * in the compact window's main view, which has no room for the recording's header, it opens the
+ * picker to switch the source (FR-17).
  */
-function LiveTag() {
+function LiveTag({ compact }: { compact: boolean }) {
   const { t } = useTranslation();
+  const setSourcePanel = useUi((s) => s.setSourcePanel);
   const state = useRecording((s) => s.state);
   const recorded = useRecording((s) => s.sources);
   const sources = sourcesText(recorded, t);
@@ -37,6 +40,13 @@ function LiveTag() {
       {sources && <span className="min-w-0 truncate text-[12px] text-muted">{sources}</span>}
     </>
   );
+  if (view === "main" && compact && state !== "finishing") {
+    return (
+      <button type="button" onClick={() => setSourcePanel(true)} title={t("switchSource")} className="-mx-1 flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-2">
+        {body}
+      </button>
+    );
+  }
   if (view === "main") {
     // The title bar may be too narrow for the source (English, a long app name): it shows on hover.
     return (
@@ -144,7 +154,7 @@ export function TitleBar({
         </IconButton>
       )}
       <span data-tauri-drag-region className="flex min-w-0 flex-1 items-center">
-        {busy ? <LiveTag /> : <Brand />}
+        {busy ? <LiveTag compact={compact} /> : <Brand />}
       </span>
       {places && !compact && <Places />}
       {places && compact && (

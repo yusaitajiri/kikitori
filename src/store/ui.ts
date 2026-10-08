@@ -18,6 +18,8 @@ type UiStore = {
   toasts: Toast[];
   flash: number;
   confirmQuit: boolean;
+  /** The source picker over the recording view, to switch what is recorded (FR-17). */
+  sourcePanel: boolean;
   go: (view: View, opts?: { tab?: SettingsTab; sessionId?: string }) => void;
   pushBanner: (n: Notice) => void;
   dismissBanner: (id: number) => void;
@@ -25,6 +27,7 @@ type UiStore = {
   flashBorder: () => void;
   setConfirmQuit: (v: boolean) => void;
   setExportFor: (id?: string) => void;
+  setSourcePanel: (open: boolean) => void;
 };
 
 let nextId = 1;
@@ -36,6 +39,7 @@ export const useUi = create<UiStore>((set) => ({
   toasts: [],
   flash: 0,
   confirmQuit: false,
+  sourcePanel: false,
   go: (view, opts) =>
     set((s) => ({
       view,
@@ -57,4 +61,5 @@ export const useUi = create<UiStore>((set) => ({
   flashBorder: () => set((s) => ({ flash: s.flash + 1 })),
   setConfirmQuit: (confirmQuit) => set({ confirmQuit }),
   setExportFor: (exportFor) => set({ exportFor }),
+  setSourcePanel: (sourcePanel) => set({ sourcePanel }),
 }));

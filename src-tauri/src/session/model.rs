@@ -93,6 +93,8 @@ pub enum MarkerKind {
     Unprocessed,
     /// The user started a new part of the session (a new topic or scene).
     Cut,
+    /// The user switched what is recorded (FR-17); `detail` names the new source.
+    SourceChanged,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -164,6 +166,11 @@ impl Session {
         })
     }
 
+    /// Whether both sides were recorded at some point: 相手 (an app or the system) and 自分 (the mic).
+    pub fn two_sides(&self) -> bool {
+        self.sources.iter().any(|s| s.id == SourceId::Mic) && self.sources.iter().any(|s| s.id != SourceId::Mic)
+    }
+
     pub fn label_for(&self, source: SourceId) -> &str {
         self.sources.iter().find(|s| s.id == source).map(|s| s.label.as_str()).unwrap_or(match source {
             SourceId::Mic => "自分",
@@ -185,7 +192,7 @@ pub struct ItemRef(pub usize);
 /// time: a segment sorts at its start, a screenshot or marker at its own time, so the
 /// timestamps shown never go backwards.
 ///
-/// On a tie, a resume, reattach or cut marker comes first (what follows belongs after it), then
+/// On a tie, a resume, reattach, cut or source marker comes first (what follows belongs after it), then
 /// segments (相手 before 自分), then screenshots, then pause and unprocessed markers; the ID
 /// breaks any remaining tie, which keeps capture order.
 pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
@@ -198,7 +205,10 @@ pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
             TimelineItem::Screenshot(s) => (s.t_ms, 2, 0, s.id.as_str(), idx),
             TimelineItem::Marker(m) => {
                 let rank = match m.kind {
-                    MarkerKind::Resumed | MarkerKind::SourceReattached | MarkerKind::Cut => 0,
+                    MarkerKind::Resumed
+                    | MarkerKind::SourceReattached
+                    | MarkerKind::Cut
+                    | MarkerKind::SourceChanged => 0,
                     MarkerKind::Paused | MarkerKind::Unprocessed => 3,
                 };
                 (m.t_ms, rank, 0, m.id.as_str(), idx)

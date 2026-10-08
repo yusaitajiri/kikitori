@@ -13,6 +13,7 @@ const COMMANDS: &[&str] = &[
     "pause_recording",
     "resume_recording",
     "switch_to_system",
+    "switch_source",
     "take_screenshot",
     "add_cut",
     "mark_current_line",

@@ -164,8 +164,7 @@ impl SegmentSink for SessionStore {
         let mut finalized: std::collections::HashSet<String> = std::collections::HashSet::new();
         for seg in result.segments {
             finalized.insert(seg.utterance_id.clone());
-            let two_streams = self.session.lock().sources.len() > 1;
-            let guard = self.echo_guard && two_streams;
+            let guard = self.echo_guard && self.session.lock().two_sides();
 
             // A 自分 line that arrives after its 相手 match is dropped before it is written.
             if guard && result.source == SourceId::Mic {

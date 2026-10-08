@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-switch-source"
+description = "Enables the switch_source command without any pre-configured scope."
+commands.allow = ["switch_source"]
+
+[[permission]]
+identifier = "deny-switch-source"
+description = "Denies the switch_source command without any pre-configured scope."
+commands.deny = ["switch_source"]

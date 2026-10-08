@@ -157,6 +157,14 @@ found a reason to deviate.
   person, rather than bold or highlight markup, which differs between Markdown flavours and
   would be lost in plain text. An important line is its own paragraph, so the star never
   claims a neighbour's words.
+- **Switching the source is a new capture plan, not a new session** (FR-17). Capture stops,
+  the DSP threads flush their last utterances, and the new plan starts at the same session time,
+  as a resume does; the session adds the new source to its list (so two apps may both be 相手)
+  and logs a `source_changed` marker naming it in Japanese, like every export string. 相手 and
+  自分 labels and the echo guard now ask whether both sides were ever recorded
+  (`Session::two_sides`), not how many sources there are, so Zoom → Teams alone stays unlabelled.
+  If the new source fails, the old plan restarts and the picker goes back to it. While paused
+  the new plan waits for resume. 「システム全体に切り替える」 after a silent app is the same switch.
 - **Unprocessed audio** after 処理を中止 is recorded as an `unprocessed` marker and
   `unprocessedMs`, rendered as 「（以降、未処理の音声 N 秒）」.
 - **Exports are Japanese** in any UI locale: the session stores 自分 / 相手 and the spec defines
@@ -352,6 +360,13 @@ found a reason to deviate.
 - **最新へ jumps from far away.** More than two screens above the newest line it scrolls there
   at once instead of gliding: in a long session left in the background the glide took seconds,
   and rows measured on the way kept moving the end.
+- **The recording keeps a header**: the title (click to rename, as in a finished session) and
+  the source as one line (`Zoom · 会話`), above the transcript and outside its scroll, so both stay
+  in view in a long session. It is small (one line, 15 px title) because the transcript is what
+  the window is for. The source opens the same picker as before a recording, over the window
+  under the title bar; while recording each change switches at once (one tap, no 適用 button),
+  and a toast confirms it. The compact window has no room for a header, so its title bar's
+  録音中 tag opens the picker; away from the main view the tag still leads back to the recording.
 - **The star** sits between the camera and the cut while recording, and on every line's hover
   actions (live too, unlike editing). An important line has an ink stroke in the left margin
   and semibold text; red stays the voice you hear. The compact window's two lines show a star.

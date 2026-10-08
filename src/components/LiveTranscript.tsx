@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Star, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, ArrowRightLeft, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../ipc/commands";
@@ -293,7 +293,9 @@ function MarkerRow({ marker, startedAt }: { marker: Marker; startedAt?: string }
           ? [Play, t("markerResumed")]
           : marker.type === "cut"
             ? [Scissors, t("markerCut")]
-            : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
+            : marker.type === "source_changed"
+              ? [ArrowRightLeft, t("markerSourceChanged", { source: marker.detail ?? "?" })]
+              : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
   // A pause or a gap had no sound, so its line stays flat. A cut starts a part, so its line is
   // darker and it stands further from the part before.
   const cut = marker.type === "cut";

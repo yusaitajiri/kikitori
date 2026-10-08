@@ -4,6 +4,8 @@ import { ConfirmQuitDialog, ExportDialog, RecoveryDialog } from "./components/Di
 import { Transcript, TranscriptTail } from "./components/LiveTranscript";
 import { Banners, Toasts } from "./components/Notices";
 import { Deck } from "./components/Deck";
+import { LiveHeader } from "./components/LiveHeader";
+import { SourcePanel } from "./components/SourcePicker";
 import { SessionHeader } from "./components/SessionHeader";
 import { StartScreen } from "./components/StartScreen";
 import { TitleBar } from "./components/TitleBar";
@@ -112,6 +114,9 @@ function MainView({ compact }: { compact: boolean }) {
   const sessionId = useTranscript((s) => s.sessionId);
   const folder = useTranscript((s) => s.folder);
   const phase = phaseOf(state, sessionId);
+  const sourcePanel = useUi((s) => s.sourcePanel);
+  const setSourcePanel = useUi((s) => s.setSourcePanel);
+  const switching = sourcePanel && (state === "recording" || state === "paused");
 
   // The deck stays mounted from the start dot to the finished session, so its line can move
   // between them; only what is above it changes.
@@ -124,9 +129,16 @@ function MainView({ compact }: { compact: boolean }) {
         <TranscriptTail />
       </div>
     );
+  } else if (phase === "live") {
+    // The recording keeps its title and source in view above the transcript.
+    body = (
+      <>
+        {state !== "finishing" && <LiveHeader />}
+        <Transcript live editable={false} />
+      </>
+    );
   } else {
-    const header = phase === "review" ? <SessionHeader /> : undefined;
-    body = <Transcript live={phase === "live"} editable={phase === "review"} header={header} />;
+    body = <Transcript live={false} editable header={<SessionHeader />} />;
   }
 
   return (
@@ -137,6 +149,7 @@ function MainView({ compact }: { compact: boolean }) {
         {body}
       </div>
       <Deck compact={compact} phase={phase} sessionId={sessionId} folder={folder} onNew />
+      {switching && <SourcePanel live dense={compact} onClose={() => setSourcePanel(false)} />}
     </>
   );
 }
