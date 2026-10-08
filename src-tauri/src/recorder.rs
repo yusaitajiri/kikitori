@@ -101,6 +101,8 @@ pub struct Active {
     lag_banner_shown: bool,
     pub app_root_pid: Option<u32>,
     pub app_name: Option<String>,
+    /// A window picked from the camera's menu: screenshots take it until the recording ends (FR-34).
+    pub shot_window: Option<screenshot::WindowInfo>,
     segmenter: SegmenterConfig,
     partials: bool,
     /// The session's sound, kept for its picture (`levels.bin`); `None` if the file failed.
@@ -158,6 +160,7 @@ pub fn state_payload(st: &AppState) -> StatePayload {
             elapsed_ms: Some(a.elapsed_ms()),
             sources: Some(a.sources.clone()),
             folder: Some(a.store.folder.to_string_lossy().into_owned()),
+            shot_window: a.shot_window.clone(),
         },
         Phase::Finishing { session_id, folder, sources, .. } => StatePayload {
             state: UiState::Finishing,
@@ -165,11 +168,12 @@ pub fn state_payload(st: &AppState) -> StatePayload {
             elapsed_ms: None,
             sources: Some(sources.clone()),
             folder: Some(folder.to_string_lossy().into_owned()),
+            shot_window: None,
         },
         Phase::Idle => {
             drop(rec);
             let state = if st.any_model_installed() { UiState::Ready } else { UiState::NeedsModel };
-            StatePayload { state, session_id: None, elapsed_ms: None, sources: None, folder: None }
+            StatePayload { state, session_id: None, elapsed_ms: None, sources: None, folder: None, shot_window: None }
         }
     }
 }
@@ -408,6 +412,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         lag_banner_shown: false,
         app_root_pid,
         app_name: (config.mode == SourceMode::App).then(|| app_name.clone()),
+        shot_window: None,
         segmenter,
         partials: settings.partials && st.partials_tier_ok(&entry.id),
         levels: LevelWriter::create(&folder).inspect_err(|e| tracing::warn!("levels.bin: {e}")).ok(),
@@ -699,6 +704,18 @@ pub fn switch_to_system(app: &AppHandle, st: &AppState) -> AppResult<()> {
     switch_source(app, st, config)
 }
 
+/// Picks the window screenshots take for the rest of the recording, or (`None`) goes back to the
+/// target in the settings (FR-34).
+pub fn set_shot_window(app: &AppHandle, st: &AppState, window: Option<screenshot::WindowInfo>) -> AppResult<()> {
+    {
+        let mut rec = st.recorder.lock();
+        let Phase::Recording(active) = &mut *rec else { return Err(AppError::internal("not recording")) };
+        active.shot_window = window;
+    }
+    emit_state(app, st);
+    Ok(())
+}
+
 /// Cut (FR-06): a new part of the session starts now. Works while paused too, so a break can
 /// end one part.
 pub fn add_cut(st: &AppState) -> AppResult<()> {
@@ -725,13 +742,13 @@ pub fn mark_current(st: &AppState) -> AppResult<bool> {
 
 /// Screenshot (FR-30, FR-31). The time is read before any capture work.
 pub fn take_screenshot(app: &AppHandle, st: &AppState) -> AppResult<ShotResponse> {
-    let (store, t_ms, root_pid) = {
+    let (store, t_ms, root_pid, window) = {
         let rec = st.recorder.lock();
         let Phase::Recording(active) = &*rec else {
             events::notice(app, Notice::new(NoticeLevel::Info, "not_recording", "shotOnlyWhileRecording").toast());
             return Err(AppError::internal("not recording"));
         };
-        (active.store.clone(), active.now_ms(), active.app_root_pid)
+        (active.store.clone(), active.now_ms(), active.app_root_pid, active.shot_window.as_ref().map(|w| w.id))
     };
     {
         let mut last = st.last_shot.lock();
@@ -744,9 +761,10 @@ pub fn take_screenshot(app: &AppHandle, st: &AppState) -> AppResult<ShotResponse
         let s = st.settings.read();
         (s.screenshot.target, s.screenshot.sound)
     };
-    let target = match (setting, root_pid) {
-        (ScreenshotTarget::AllMonitors, _) => screenshot::CaptureTarget::AllMonitors,
-        (ScreenshotTarget::AppWindow, Some(pid)) => screenshot::CaptureTarget::AppWindow { root_pid: pid },
+    let target = match (window, setting, root_pid) {
+        (Some(id), _, _) => screenshot::CaptureTarget::Window { id },
+        (None, ScreenshotTarget::AllMonitors, _) => screenshot::CaptureTarget::AllMonitors,
+        (None, ScreenshotTarget::AppWindow, Some(pid)) => screenshot::CaptureTarget::AppWindow { root_pid: pid },
         _ => screenshot::CaptureTarget::CursorMonitor,
     };
     let result = st.capturer.capture(target).map_err(|e| AppError::internal(format!("capture failed: {e:#}")))?;

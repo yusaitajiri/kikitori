@@ -6,10 +6,11 @@
 // every item is made explicitly and closed when the next menu opens (any click is delivered by
 // then).
 
-import { Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 
+/** An item with `checked` set shows a check mark when true (a choice among several). */
 export type MenuEntry =
-  | { text: string; enabled?: boolean; action: () => void }
+  | { text: string; enabled?: boolean; checked?: boolean; action: () => void }
   | { text: string; enabled?: boolean; items: MenuEntry[] }
   | "separator";
 
@@ -17,13 +18,18 @@ type Closable = { close(): Promise<void> };
 
 let live: Closable[] = [];
 
-async function make(entry: MenuEntry, made: Closable[]): Promise<MenuItem | Submenu | PredefinedMenuItem> {
-  let item: MenuItem | Submenu | PredefinedMenuItem;
+/** Windows reads `&` in a menu item as the start of a keyboard shortcut; `&&` shows one `&`. */
+export const menuText = (text: string) => text.replaceAll("&", "&&");
+
+async function make(entry: MenuEntry, made: Closable[]): Promise<MenuItem | CheckMenuItem | Submenu | PredefinedMenuItem> {
+  let item: MenuItem | CheckMenuItem | Submenu | PredefinedMenuItem;
   if (entry === "separator") {
     item = await PredefinedMenuItem.new({ item: "Separator" });
   } else if ("items" in entry) {
     const children = await Promise.all(entry.items.map((e) => make(e, made)));
     item = await Submenu.new({ text: entry.text, enabled: entry.enabled ?? true, items: children });
+  } else if (entry.checked !== undefined) {
+    item = await CheckMenuItem.new({ text: entry.text, enabled: entry.enabled ?? true, checked: entry.checked, action: entry.action });
   } else {
     item = await MenuItem.new({ text: entry.text, enabled: entry.enabled ?? true, action: entry.action });
   }

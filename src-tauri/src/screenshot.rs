@@ -6,6 +6,7 @@ use base64::Engine as _;
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ExtendedColorType, ImageEncoder, RgbaImage};
+use serde::{Deserialize, Serialize};
 
 pub const THUMB_WIDTH: u32 = 320;
 
@@ -17,7 +18,24 @@ pub enum CaptureTarget {
     AppWindow {
         root_pid: u32,
     },
+    /// One window the user picked from the camera's menu (FR-34).
+    Window {
+        id: u32,
+    },
 }
+
+/// An open window, as the camera's menu lists it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowInfo {
+    pub id: u32,
+    pub title: String,
+    /// The program's name ("PowerPoint"), from its version info.
+    pub app: String,
+}
+
+/// The menu lists at most this many windows, front first.
+pub const MAX_WINDOWS: usize = 20;
 
 pub struct Captured {
     pub image: RgbaImage,
@@ -34,6 +52,8 @@ pub struct CaptureResult {
 /// OS-specific capture behind a trait (section 6).
 pub trait ScreenCapturer: Send + Sync {
     fn capture(&self, target: CaptureTarget) -> anyhow::Result<CaptureResult>;
+    /// The windows a screenshot could take, front first, Kikitori's own left out.
+    fn windows(&self) -> anyhow::Result<Vec<WindowInfo>>;
 }
 
 #[cfg(windows)]
@@ -91,7 +111,38 @@ impl ScreenCapturer for XcapCapturer {
                 }
                 Ok(CaptureResult { images: vec![Self::cursor_monitor()?], fell_back: true })
             }
+            CaptureTarget::Window { id } => {
+                let window = xcap::Window::all()?
+                    .into_iter()
+                    .find(|w| w.id().ok() == Some(id) && !w.is_minimized().unwrap_or(true));
+                if let Some(w) = window
+                    && let Ok(image) = w.capture_image()
+                {
+                    let label = format!("window:{}", w.pid().unwrap_or(0));
+                    return Ok(CaptureResult { images: vec![Captured { image, label }], fell_back: false });
+                }
+                // Closed or minimized since it was picked.
+                Ok(CaptureResult { images: vec![Self::cursor_monitor()?], fell_back: true })
+            }
         }
+    }
+
+    fn windows(&self) -> anyhow::Result<Vec<WindowInfo>> {
+        let own = std::process::id();
+        Ok(xcap::Window::all()?
+            .into_iter()
+            .filter(|w| w.pid().is_ok_and(|p| p != own))
+            .filter(|w| !w.is_minimized().unwrap_or(true))
+            .filter(|w| w.width().unwrap_or(0) >= 100 && w.height().unwrap_or(0) >= 60)
+            .filter_map(|w| {
+                let title = w.title().ok()?.trim().to_string();
+                if title.is_empty() {
+                    return None;
+                }
+                Some(WindowInfo { id: w.id().ok()?, title, app: w.app_name().unwrap_or_default() })
+            })
+            .take(MAX_WINDOWS)
+            .collect())
     }
 }
 
@@ -230,6 +281,19 @@ mod tests {
         assert_eq!((thumb.width(), thumb.height()), (320, 180));
         let print = jpeg_for_print(&path, 640, 85).unwrap();
         assert_eq!(image::load_from_memory(&print).unwrap().width(), 640);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "lists the real desktop's windows"]
+    fn lists_open_windows_quickly() {
+        let t = std::time::Instant::now();
+        let windows = XcapCapturer.windows().unwrap();
+        println!("{} windows in {:?}", windows.len(), t.elapsed());
+        for w in &windows {
+            println!("{:>10} {:<24} {}", w.id, w.app, w.title);
+        }
+        assert!(windows.len() <= MAX_WINDOWS);
     }
 
     #[cfg(windows)]

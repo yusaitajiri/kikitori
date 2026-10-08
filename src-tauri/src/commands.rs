@@ -282,6 +282,18 @@ pub async fn take_screenshot(app: AppHandle) -> AppResult<ShotResponse> {
     blocking(app, recorder::take_screenshot).await
 }
 
+/// The windows the camera's menu offers (FR-34).
+#[tauri::command]
+pub async fn list_windows(app: AppHandle) -> AppResult<Vec<crate::screenshot::WindowInfo>> {
+    use crate::screenshot::ScreenCapturer as _;
+    blocking(app, |_, st| st.capturer.windows().map_err(|e| AppError::internal(format!("{e:#}")))).await
+}
+
+#[tauri::command]
+pub async fn set_shot_window(app: AppHandle, window: Option<crate::screenshot::WindowInfo>) -> AppResult<()> {
+    blocking(app, move |app, st| recorder::set_shot_window(app, st, window)).await
+}
+
 #[tauri::command]
 pub async fn add_cut(app: AppHandle) -> AppResult<()> {
     blocking(app, |_, st| recorder::add_cut(st)).await

@@ -449,6 +449,21 @@
   height: 36px;
   border-radius: 10px;
 }
+/* The camera and its menu, joined into one control. */
+.kk-ctl.kk-split-l {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.kk-ctl.kk-split-r {
+  width: 18px;
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  color: var(--kk-muted);
+}
+.kk-deck-compact .kk-ctl.kk-split-r {
+  width: 16px;
+}
 .kk-timer {
   font-size: 30px;
   font-weight: 300;

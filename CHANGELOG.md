@@ -10,6 +10,7 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 - Hotkeys for the important mark and the cut.
 - Switch the source while recording, without stopping; the transcript notes the switch.
 - The recording keeps a header with its title (click to rename) and its source.
+- The camera's menu picks what screenshots take: the app's window, a screen, all screens, or any open window.
 - A cut button while recording starts a new part of the session. The transcript shows the cut, Markdown exports head each part with `## HH:MM:SS`, and the PDF lists the parts in its outline.
 
 ### Changed

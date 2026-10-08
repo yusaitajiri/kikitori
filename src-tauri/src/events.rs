@@ -64,6 +64,9 @@ pub struct StatePayload {
     pub sources: Option<RecordedSources>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
+    /// The window screenshots take, when one was picked for this recording (FR-34).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shot_window: Option<crate::screenshot::WindowInfo>,
 }
 
 /// What is being recorded, for the UI to name in its own language ("Zoom + マイク").

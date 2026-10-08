@@ -105,6 +105,7 @@ items (section 19).
 | FR-31 | Screenshots | The image is placed in the timeline at capture time, shown in the live view and confirmed by a toast. |
 | FR-32 | Screenshots | Kikitori's own window never appears in screenshots or screen shares. |
 | FR-33 | Screenshots | Delete a screenshot or caption it from the transcript. |
+| FR-34 | Screenshots | The camera's menu picks what screenshots take: the recorded app's window, the cursor's screen or all screens (remembered as the setting), or any open window, for the rest of the recording. |
 | FR-40 | Transcript | Live list; auto-scroll pauses when the user scrolls up and 最新へ appears. |
 | FR-41 | Transcript | Edit or delete a line after Stop; every export uses the edits. |
 | FR-50 | Copy | コピー copies plain text; settings choose times and labels. Markdown copy is in the … menu. |
@@ -314,7 +315,9 @@ screenshot.
 
 **Capture.** Repeats within 500 ms are ignored. The time is read first, before any capture work.
 The target is the recorded app's largest visible window (else the screen under the cursor), the
-screen under the cursor, or every screen (one image each, same time, `-m1`, `-m2`). A
+screen under the cursor, or every screen (one image each, same time, `-m1`, `-m2`), as set; or a
+window picked from the camera's menu for this recording (FR-34), until it closes (then the
+screen under the cursor). A
 full-resolution PNG goes to `images/0001_151603.png` (counter, local `HHMMSS`), a 320 px JPEG
 thumbnail goes to the UI, and the `screenshot` event is logged once the file is written.
 

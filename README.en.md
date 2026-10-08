@@ -50,7 +50,7 @@ Before you record anyone, let them know.
 | Start or stop recording | **Start** / **Stop** |
 | Choose what to transcribe | **Source**: an app (Zoom and so on), All system audio, or Microphone only. Turn on **Record a conversation** to add your own voice as Me |
 | Change the source while recording | Pick again from the source at the top of the recording (in the compact window, **Recording** in the title bar); it switches without stopping |
-| Add a screenshot | **Screenshot** while recording |
+| Add a screenshot | **Screenshot** while recording. The **⌄** beside it picks what it takes: the app's window, a screen, or any other window |
 | Mark where a new topic or scene starts | The **scissors** button while recording. Exports give each part a heading |
 | Mark something important | The **star** button while recording (it marks the line being said). Each line's star adds or removes the mark too; exports start such lines with ★ |
 | Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for AI agents |

@@ -88,12 +88,17 @@ export type EngineStatus = {
 /** What is being recorded: the app or the whole system first, then the mic; named by the UI. */
 export type RecordedSources = { ids: SourceId[]; appName?: string };
 
+/** An open window, as the camera's menu lists it (FR-34). */
+export type WindowInfo = { id: number; title: string; app: string };
+
 export type StatePayload = {
   state: UiState;
   sessionId?: string;
   elapsedMs?: number;
   sources?: RecordedSources;
   folder?: string;
+  /** The window screenshots take, when one was picked for this recording. */
+  shotWindow?: WindowInfo;
 };
 
 export type AppInfo = {

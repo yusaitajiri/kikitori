@@ -16,6 +16,8 @@ const COMMANDS: &[&str] = &[
     "switch_source",
     "take_screenshot",
     "add_cut",
+    "list_windows",
+    "set_shot_window",
     "mark_current_line",
     "mark_segment",
     "get_session",

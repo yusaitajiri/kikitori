@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import type { EngineStatus, LagPayload, ProgressPayload, RecordedSources, StatePayload, UiState } from "../ipc/types";
+import type { EngineStatus, LagPayload, ProgressPayload, RecordedSources, StatePayload, UiState, WindowInfo } from "../ipc/types";
 
 type RecordingStore = {
   state: UiState;
   sessionId?: string;
   sources?: RecordedSources;
   folder?: string;
+  /** The window screenshots take, when one was picked for this recording (FR-34). */
+  shotWindow?: WindowInfo;
   /** Elapsed time at `elapsedAt` (ms since epoch); the UI ticks locally between 1 Hz updates. */
   elapsedMs: number;
   elapsedAt: number;
@@ -33,6 +35,7 @@ export const useRecording = create<RecordingStore>((set) => ({
       sessionId: p.sessionId ?? (p.state === "finishing" ? s.sessionId : undefined),
       sources: p.sources ?? (p.state === "finishing" ? s.sources : undefined),
       folder: p.folder ?? s.folder,
+      shotWindow: p.shotWindow,
       elapsedMs: p.elapsedMs ?? (p.state === "recording" || p.state === "paused" || p.state === "finishing" ? s.elapsedMs : 0),
       elapsedAt: Date.now(),
       lag: p.state === "recording" || p.state === "paused" ? s.lag : null,

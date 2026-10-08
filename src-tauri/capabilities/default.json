@@ -23,6 +23,8 @@
     "allow-switch-source",
     "allow-take-screenshot",
     "allow-add-cut",
+    "allow-list-windows",
+    "allow-set-shot-window",
     "allow-mark-current-line",
     "allow-mark-segment",
     "allow-get-session",

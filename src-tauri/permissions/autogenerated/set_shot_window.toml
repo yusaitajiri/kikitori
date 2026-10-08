@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-shot-window"
+description = "Enables the set_shot_window command without any pre-configured scope."
+commands.allow = ["set_shot_window"]
+
+[[permission]]
+identifier = "deny-set-shot-window"
+description = "Denies the set_shot_window command without any pre-configured scope."
+commands.deny = ["set_shot_window"]

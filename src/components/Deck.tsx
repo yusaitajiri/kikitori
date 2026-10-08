@@ -1,14 +1,14 @@
-import { Camera, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square, Star } from "lucide-react";
+import { Camera, ChevronDown, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square, Star } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useElapsed } from "../hooks/useElapsed";
 import { commands } from "../ipc/commands";
-import type { SourceId } from "../ipc/types";
+import type { SourceId, WindowInfo } from "../ipc/types";
 import { addCut, copy, exportAs, markCurrentLine, newRecording, openFolder, pauseOrResume, reportError, takeScreenshot, toggleRecording } from "../lib/actions";
 import { clockAt, timerText } from "../lib/format";
 import { animate, reducedMotion, stopAnimating, type Animated } from "../lib/frameLoop";
 import { blobPath, liveLine, mapLine, sessionShape, type Shape } from "../lib/line";
-import { popupMenu, type MenuEntry } from "../lib/popupMenu";
+import { menuText, popupMenu, type MenuEntry } from "../lib/popupMenu";
 import { lineHistory } from "../store/line";
 import { useRecording } from "../store/recording";
 import { useSettings } from "../store/settings";
@@ -668,11 +668,53 @@ function StartRow({ compact, onHover }: { compact: boolean; onHover: (on: boolea
   );
 }
 
-/** The time in big numerals, then pause or resume, stop, screenshot, mark and cut. */
+/**
+ * What the camera takes (FR-34): the recorded app's window, the cursor's screen or every screen
+ * (the setting, remembered), or any open window for the rest of this recording.
+ */
+async function shotMenu(t: (k: string, p?: Record<string, unknown>) => string) {
+  const rec = useRecording.getState();
+  const settings = useSettings.getState();
+  const target = settings.settings?.screenshot.target ?? "appWindow";
+  const picked = rec.shotWindow;
+  const app = rec.sources?.ids.includes("app") ? rec.sources.appName : undefined;
+  const windows = await commands.listWindows().catch((): WindowInfo[] => []);
+  if (picked && !windows.some((w) => w.id === picked.id)) windows.unshift(picked);
+  const choose = (next: "appWindow" | "cursorMonitor" | "allMonitors") => async () => {
+    try {
+      if (picked) await commands.setShotWindow(null);
+      if (next !== target) await settings.update({ screenshot: { target: next } });
+    } catch (e) {
+      reportError(e);
+    }
+  };
+  // Without an app recorded, the app's window means the cursor's screen.
+  const cursor = target === "cursorMonitor" || (target === "appWindow" && !app);
+  const entries: MenuEntry[] = [
+    ...(app ? [{ text: menuText(t("shotWindowOf", { app })), checked: !picked && target === "appWindow", action: choose("appWindow") }] : []),
+    { text: t("targetCursor"), checked: !picked && cursor, action: choose("cursorMonitor") },
+    { text: t("targetAll"), checked: !picked && target === "allMonitors", action: choose("allMonitors") },
+    "separator",
+    {
+      text: t("shotPickWindow"),
+      items: windows.length
+        ? windows.map((w) => ({
+            text: menuText(w.title.length > 60 ? `${w.title.slice(0, 59)}…` : w.title),
+            checked: picked?.id === w.id,
+            action: () => void commands.setShotWindow(w).catch(reportError),
+          }))
+        : [{ text: t("noWindows"), enabled: false, action: () => {} }],
+    },
+  ];
+  await popupMenu(entries).catch(reportError);
+}
+
+/** The time in big numerals, then pause or resume, stop, screenshot (with what it takes), mark and cut. */
 function LiveRow({ compact, paused }: { compact: boolean; paused: boolean }) {
   const { t } = useTranslation();
   const elapsed = useElapsed();
   const lag = useRecording((s) => (s.lag ? Math.round(s.lag.lagMs / 1000) : 0));
+  const shotWindow = useRecording((s) => s.shotWindow);
   const note = paused ? t("paused") : lag >= 2 ? t("lag", { n: lag }) : "";
   const ctl = "kk-ctl grid shrink-0 place-items-center rounded-[11px] border border-line bg-surface text-fg transition-colors duration-150 hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40";
   return (
@@ -707,9 +749,14 @@ function LiveRow({ compact, paused }: { compact: boolean; paused: boolean }) {
           <Square size={10} fill="currentColor" />
           {t("stop")}
         </button>
-        <button type="button" onClick={takeScreenshot} disabled={paused} aria-label={t("screenshot")} title={t("screenshot")} className={ctl}>
-          <Camera size={17} />
-        </button>
+        <span className="flex shrink-0">
+          <button type="button" onClick={takeScreenshot} disabled={paused} aria-label={t("screenshot")} title={shotWindow ? `${t("screenshot")}: ${shotWindow.title}` : t("screenshot")} className={`${ctl} kk-split-l`}>
+            <Camera size={17} />
+          </button>
+          <button type="button" onClick={() => shotMenu(t)} aria-haspopup="menu" aria-label={t("shotTarget")} title={t("shotTarget")} className={`${ctl} kk-split-r`}>
+            <ChevronDown size={12} />
+          </button>
+        </span>
         <button type="button" onClick={markCurrentLine} aria-label={t("markLine")} title={t("markLine")} className={ctl}>
           <Star size={16} />
         </button>

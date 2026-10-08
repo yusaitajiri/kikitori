@@ -317,6 +317,13 @@ found a reason to deviate.
 - **Always on top is off by default**, toggled by a pin in the title bar on every page.
 - **Screenshots take the recorded app by default**: its window while recording an app, the
   cursor's screen while recording system audio or the mic alone (`appWindow`).
+- **The camera has a menu** (a chevron joined to it, FR-34), a native popup like ⋯ so it fits
+  the compact window. The three targets are the setting itself, so a choice there is
+  remembered, as in 設定 › スクショ; a window from its list (up to 20, front first, Kikitori's own
+  left out, from the same `xcap` listing) holds for the rest of the recording only, since a
+  window seldom outlives one. A picked window that has closed or been minimized falls back to the
+  cursor's screen, with the usual 「（カーソルの画面）」 toast. The picked window travels in
+  `recording://state` (`shotWindow`), so the menu's check marks follow the backend.
 - **Speaker names** are coloured text: 相手 red, 自分 ink. A darker red for 自分 would be hard to
   tell from 相手 and nearly identical with red-green colour blindness. Provisional text is plain
   pencil grey.
