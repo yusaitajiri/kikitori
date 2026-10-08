@@ -1,6 +1,6 @@
 // Writes the licence texts of everything the installer ships besides Kikitori's own code: the
-// Rust crates linked into the exe, the whisper.cpp sources built from whisper-rs-sys, and the
-// frontend packages Vite bundles. MIT, BSD and Apache-2.0 ask for their notices to travel with
+// Rust crates linked into the exe, the whisper.cpp sources built from whisper-rs-sys, libopus
+// built from opusic-sys, and the frontend packages Vite bundles. MIT, BSD and Apache-2.0 ask for their notices to travel with
 // the binary. Typst's LICENSE and NOTICE and the Vulkan loader's licence ship as their own files
 // in the same licenses\ folder.
 //
@@ -70,6 +70,15 @@ function whisperCpp(crates) {
   const file = join(dirname(sys.manifest_path), "whisper.cpp", "LICENSE");
   if (!existsSync(file)) throw new Error(`${file} is missing: check where whisper-rs-sys keeps whisper.cpp`);
   return { label: `whisper.cpp and ggml (built from whisper-rs-sys ${sys.version})`, license: "MIT", files: [file] };
+}
+
+// opusic-sys is BSD-3-Clause and compiles the libopus sources it carries, which come with their
+// own BSD licence (COPYING).
+function libopus(crates) {
+  const sys = crates.find((p) => p.name === "opusic-sys");
+  const file = join(dirname(sys.manifest_path), "opus", "COPYING");
+  if (!existsSync(file)) throw new Error(`${file} is missing: check where opusic-sys keeps libopus`);
+  return { label: `libopus (built from opusic-sys ${sys.version})`, license: "BSD-3-Clause", files: [file] };
 }
 
 // Packages Vite can bundle: the dependencies in package.json and theirs, found the way Node
@@ -164,6 +173,7 @@ loader's licence are the other files in this folder.`;
   return [
     header,
     section("whisper.cpp", [whisperCpp(crates)]),
+    section("libopus", [libopus(crates)]),
     section("Rust crates", crates.map(crateEntry)),
     section("JavaScript packages", frontendPackages()),
   ].join("\n\n\n") + "\n";

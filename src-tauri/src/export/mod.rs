@@ -240,6 +240,7 @@ pub(crate) mod test_support {
             unprocessed_ms: 0,
             project: None,
             continued: Vec::new(),
+            audio: Vec::new(),
         }
     }
 

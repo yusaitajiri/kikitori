@@ -96,6 +96,7 @@ function Audio({ s }: { s: SettingsT }) {
           />
         </Field>
         <Toggle label={t("echoGuard")} checked={s.echoGuard} onChange={(v) => save({ echoGuard: v })} />
+        <Toggle label={t("keepAudio")} checked={s.audio.record} onChange={(v) => save({ audio: { record: v } })} />
       </Section>
       <Advanced>
         <Field label={`${t("vadThreshold")}: ${s.vad.startThreshold.toFixed(2)}`}>

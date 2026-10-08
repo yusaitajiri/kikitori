@@ -90,7 +90,7 @@ function RowActions({ children }: { children: ReactNode }) {
 
 const actionClass = "grid size-6 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-fg";
 
-function SegmentRow({ seg, head, clock, twoSpeakers, editable }: { seg: Segment; head: boolean; clock?: Clock; twoSpeakers: boolean; editable: boolean }) {
+function SegmentRow({ seg, head, clock, twoSpeakers, editable, playable }: { seg: Segment; head: boolean; clock?: Clock; twoSpeakers: boolean; editable: boolean; playable: boolean }) {
   const { t } = useTranslation();
   const store = useTranscriptStore();
   const sessionId = store((s) => s.sessionId);
@@ -165,6 +165,11 @@ function SegmentRow({ seg, head, clock, twoSpeakers, editable }: { seg: Segment;
       )}
       {!editing && sessionId && (
         <RowActions>
+          {playable && (
+            <button type="button" aria-label={t("playFromHere")} title={t("playFromHere")} className={actionClass} onClick={() => store.getState().playFrom(seg.tStartMs)}>
+              <Play size={13} />
+            </button>
+          )}
           <button type="button" aria-label={markLabel} title={markLabel} aria-pressed={!!seg.important} className={actionClass} onClick={toggleImportant}>
             <Star size={13} fill={seg.important ? "currentColor" : "none"} />
           </button>
@@ -332,11 +337,11 @@ function PartialRow({ partial, head, clock, twoSpeakers }: { partial: PartialIte
   );
 }
 
-const RowView = memo(function RowView({ row, clock, twoSpeakers, editable }: { row: Row; clock?: Clock; twoSpeakers: boolean; editable: boolean }) {
+const RowView = memo(function RowView({ row, clock, twoSpeakers, editable, playable }: { row: Row; clock?: Clock; twoSpeakers: boolean; editable: boolean; playable: boolean }) {
   if (row.kind === "header") return null;
   if (row.kind === "partial") return <PartialRow partial={row.partial} head={row.head} clock={clock} twoSpeakers={twoSpeakers} />;
   const item = row.item;
-  if (item.kind === "segment") return <SegmentRow seg={item} head={row.head} clock={clock} twoSpeakers={twoSpeakers} editable={editable} />;
+  if (item.kind === "segment") return <SegmentRow seg={item} head={row.head} clock={clock} twoSpeakers={twoSpeakers} editable={editable} playable={playable} />;
   if (item.kind === "screenshot") return <ScreenshotRow shot={item} clock={clock} editable={editable} />;
   return <MarkerRow marker={item} clock={clock} />;
 });
@@ -364,6 +369,20 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
   const { rows, twoSpeakers, clock } = useRows(!!header);
   const store = useTranscriptStore();
   const seek = store((s) => s.seek);
+  const playable = store((s) => s.audio.length > 0) && !live;
+  const playingMs = store((s) => s.playingMs);
+  // The line being played (FR-09): the last one that started before where the sound is.
+  const playingKey = useMemo(() => {
+    if (playingMs === null) return null;
+    let key: string | null = null;
+    for (const r of rows) {
+      if (r.kind === "item" && r.item.kind === "segment") {
+        if (r.item.tStartMs > playingMs) break;
+        key = r.key;
+      }
+    }
+    return key;
+  }, [rows, playingMs]);
   const parentRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
   const atBottomRef = useRef(atBottom);
@@ -432,6 +451,28 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
     // Only a new request jumps; new rows do not.
   }, [seek]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // While playing, the transcript keeps up with the sound, unless the reader has scrolled away
+  // from the line that was playing.
+  const followed = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = followed.current;
+    followed.current = playingKey;
+    if (!playingKey || playingKey === prev) return;
+    const el = parentRef.current;
+    const index = rows.findIndex((r) => r.key === playingKey);
+    if (!el || index < 0) return;
+    const shown = (key: string | null) => {
+      const node = key ? el.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`) : null;
+      if (!node) return false;
+      const a = node.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      return a.bottom > b.top && a.top < b.bottom - LINE_Y;
+    };
+    if (prev === null || shown(prev)) {
+      if (!shown(playingKey)) virtualizer.scrollToIndex(index, { align: "center" });
+    }
+  }, [playingKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onScroll = () => {
     const el = parentRef.current;
     if (!el) return;
@@ -465,8 +506,9 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
               <div
                 key={v.key}
                 data-index={v.index}
+                data-key={row.key}
                 ref={virtualizer.measureElement}
-                className={`absolute top-0 left-0 w-full transition-colors duration-500 ${marked === row.key ? "bg-surface-2" : ""}`}
+                className={`absolute top-0 left-0 w-full transition-colors duration-500 ${marked === row.key || playingKey === row.key ? "bg-surface-2" : ""}`}
                 style={{ transform: `translateY(${v.start}px)` }}
               >
                 {row.kind === "header" ? (
@@ -475,7 +517,7 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
                     {!hasLines && <p className="py-10 text-center text-[12px] text-muted">{t("emptyTranscript")}</p>}
                   </>
                 ) : (
-                  <RowView row={row} clock={clock} twoSpeakers={twoSpeakers} editable={editable} />
+                  <RowView row={row} clock={clock} twoSpeakers={twoSpeakers} editable={editable} playable={playable} />
                 )}
               </div>
             );

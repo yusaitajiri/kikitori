@@ -9,8 +9,8 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use super::model::{
-    Continuation, Marker, MarkerKind, ModelRef, SCHEMA_VERSION, Screenshot, Segment, Session, SourceId, SourceInfo,
-    TimelineItem,
+    AudioFile, Continuation, Marker, MarkerKind, ModelRef, SCHEMA_VERSION, Screenshot, Segment, Session, SourceId,
+    SourceInfo, TimelineItem,
 };
 
 pub const LOG_FILE: &str = "session.jsonl";
@@ -84,6 +84,11 @@ pub enum LogEvent {
     /// The detected language once `auto` locks it (section 8).
     LanguageDetected {
         language: String,
+    },
+    /// A recording's sound is being written to `file` from session time `start_ms` (FR-09).
+    AudioStarted {
+        file: String,
+        start_ms: u64,
     },
     /// A later recording continues the saved session from `at_ms` (FR-08); the session is open
     /// again until the next `session_stopped`.
@@ -259,6 +264,7 @@ pub fn replay_lines(lines: &[String]) -> Option<Replay> {
                     unprocessed_ms: 0,
                     project: None,
                     continued: Vec::new(),
+                    audio: Vec::new(),
                 });
             }
             event => {
@@ -354,6 +360,7 @@ pub fn apply(s: &mut Session, event: LogEvent) {
         LogEvent::ProjectSet { project } => s.project = project,
         // The session keeps the configured language (`auto`); the detected one is only logged.
         LogEvent::LanguageDetected { .. } => {}
+        LogEvent::AudioStarted { file, start_ms } => s.audio.push(AudioFile { file, start_ms }),
         LogEvent::SessionContinued { at_ms, started_at, sources } => {
             s.continued.push(Continuation { at_ms, started_at });
             s.ended_at = None;

@@ -21,6 +21,7 @@ use crate::models::catalog;
 use crate::platform;
 use crate::screenshot::{self, ScreenCapturer};
 use crate::segmenter::SegmenterConfig;
+use crate::session::audio::{self, AudioRecorder};
 use crate::session::levels::LevelWriter;
 use crate::session::log::{LogEvent, SessionLog};
 use crate::session::model::{MarkerKind, ModelRef, SCHEMA_VERSION, Session, SourceId, SourceInfo};
@@ -109,6 +110,8 @@ pub struct Active {
     partials: bool,
     /// The session's sound, kept for its picture (`levels.bin`); `None` if the file failed.
     levels: Option<LevelWriter>,
+    /// The recording's sound, kept to play back (FR-09); `None` when off or if the file failed.
+    audio: Option<AudioRecorder>,
 }
 
 impl Active {
@@ -408,6 +411,7 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
                 unprocessed_ms: 0,
                 project: None,
                 continued: Vec::new(),
+                audio: Vec::new(),
             };
             (folder, log, session, SessionIds::default(), 0, true)
         }
@@ -429,6 +433,7 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
         }
     };
     let session_id = session.id.clone();
+    let session_audio_count = session.audio.len();
     let t0 = (platform::qpc_now_100ns() as i64) - at_ms as i64 * 10_000;
     let store = Arc::new(SessionStore::new(&folder, log, session, Arc::new(ids), events_of(app), settings.echo_guard));
     let ctx = SessionCtx::new(
@@ -448,6 +453,12 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
         ..Default::default()
     };
     let levels = if fresh { LevelWriter::create(&folder) } else { LevelWriter::open_append(&folder) };
+    let audio_file = audio::file_name(session_audio_count + 1);
+    let audio = settings
+        .audio
+        .record
+        .then(|| AudioRecorder::start(folder.join(&audio_file), at_ms * 16))
+        .and_then(|r| r.inspect_err(|e| tracing::warn!("{audio_file}: {e:#}")).ok());
     let (status_tx, status_rx) = crossbeam_channel::unbounded();
     let mut active = Active {
         store,
@@ -468,9 +479,14 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
         segmenter,
         partials: settings.partials && st.partials_tier_ok(&entry.id),
         levels: levels.inspect_err(|e| tracing::warn!("levels.bin: {e}")).ok(),
+        audio,
     };
     st.levels.clear();
     if let Err((source, err)) = start_sources(&mut active, st, at_ms) {
+        if let Some(sound) = active.audio.take() {
+            sound.finish();
+            let _ = std::fs::remove_file(folder.join(&audio_file));
+        }
         drop(active);
         if fresh {
             let _ = std::fs::remove_dir_all(&folder);
@@ -487,6 +503,9 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
                 AppError::new(ErrorCode::SourceLost, format!("{}: {msg}", source.as_str()))
             },
         );
+    }
+    if active.audio.is_some() {
+        active.store.record(LogEvent::AudioStarted { file: audio_file, start_ms: at_ms });
     }
     if !fresh {
         // Logged once capture runs, so a source that fails to start leaves the session as it was.
@@ -514,6 +533,7 @@ fn start_sources(active: &mut Active, st: &AppState, start_ms: u64) -> Result<()
             partials: active.partials,
             pad_quiet_stream: p.id == SourceId::System,
             start_ms,
+            audio: active.audio.as_ref().map(AudioRecorder::sender),
         };
         let dsp = dsp::spawn(rx, params, active.ctx.clone(), sink.clone(), active.store.ids.clone(), st.levels.clone());
         let mut source: Box<dyn AudioSource> =
@@ -580,11 +600,15 @@ pub fn stop(app: &AppHandle, st: &AppState) -> AppResult<()> {
 }
 
 fn finish(app: &AppHandle, st: &AppState, mut active: Box<Active>, stop_ms: u64, cancel: Arc<AtomicBool>) {
-    // The readings end with the recording: close the file before the session is listed.
+    // The readings and the sound end with the recording: close their files before the session
+    // is listed.
     if let Some(mut track) = active.levels.take()
         && let Err(e) = track.flush()
     {
         tracing::warn!("levels.bin: {e}");
+    }
+    if let Some(sound) = active.audio.take() {
+        sound.finish();
     }
     let id = active.store.id.clone();
     st.worker.drop_partials(&id);

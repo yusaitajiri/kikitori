@@ -186,6 +186,7 @@ fn stream(
         unprocessed_ms: 0,
         project: None,
         continued: Vec::new(),
+        audio: Vec::new(),
     };
     let log = SessionLog::create(dir.path()).unwrap();
     log.append(&LogEvent::SessionStarted {
@@ -232,6 +233,7 @@ fn stream(
             partials,
             pad_quiet_stream: false,
             start_ms: 0,
+            audio: None,
         };
         let dsp = dsp::spawn(rx, params, ctx.clone(), job_sink.clone(), ids.clone(), levels.clone());
         let mut src = FileSource::new(*id, wav.to_path_buf(), *channel, t0, speed());

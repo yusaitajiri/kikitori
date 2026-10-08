@@ -127,6 +127,19 @@ impl Default for VadSettings {
     }
 }
 
+/// Whether recordings keep their sound (FR-09).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AudioSettings {
+    pub record: bool,
+}
+
+impl Default for AudioSettings {
+    fn default() -> Self {
+        Self { record: true }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ScreenshotSettings {
@@ -217,6 +230,7 @@ pub struct Settings {
     pub export: ExportSettings,
     pub copy: CopySettings,
     pub auto_copy_on_stop: bool,
+    pub audio: AudioSettings,
 }
 
 impl Default for Settings {
@@ -242,6 +256,7 @@ impl Default for Settings {
             export: ExportSettings::default(),
             copy: CopySettings::default(),
             auto_copy_on_stop: false,
+            audio: AudioSettings::default(),
         }
     }
 }
@@ -450,6 +465,7 @@ mod tests {
         assert_eq!(s.model_id, "turbo-q5");
         assert_eq!(s.hotkeys.toggle, "");
         assert_eq!(s.hotkeys.screenshot, "");
+        assert!(s.audio.record);
         assert_eq!(s.screenshot.target, ScreenshotTarget::AppWindow);
         assert_eq!(s.output.root, ROOT);
         assert_eq!(s.export.labels, LabelMode::Auto);

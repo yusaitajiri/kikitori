@@ -87,6 +87,7 @@ items (section 19).
 | FR-06 | Recording | A cut button starts a new part of the session (a new topic or scene), recorded as a `cut` marker; exports head each part with its time. |
 | FR-07 | Recording | A star button (and hotkey) marks the line being said as important, even before its text arrives; any line can be marked or unmarked from the transcript while recording or after. Exports start an important line with ★. |
 | FR-08 | Recording | 「続きを録音」 (a finished session's ⋯ menu, History's row menu) records more onto a saved session, today's or an old one: its transcript, screenshots and sound carry on after its end, and clock times after that point follow the new start. |
+| FR-09 | Recording | Keep the recording's sound (on by default, 設定 › 音声): every source mixed into one Opus file per recording. A finished session plays it back from any line (its ▶), or from the start with the deck's play button; the line playing is highlighted and the session's line shows where the sound is. |
 | FR-10 | Sources | Sources: the whole system, the mic alone, or one app. |
 | FR-11 | Sources | The app list puts apps with an audio session first, each showing its live sound, then other apps with windows; it has a refresh button. |
 | FR-12 | Sources | 「会話として録音」 (on by default) adds the mic to an app or system recording, labelling lines 自分 (mic) and 相手 (the rest). |
@@ -358,12 +359,15 @@ characters, `-2` and so on if taken):
 - `session.jsonl`: the event log, one JSON object per line with schema version `v`. Events:
   `session_started`, `segment`, `segment_removed`, `segment_edited`, `segment_marked`, `screenshot`,
   `screenshot_deleted`, `caption_set`, `marker`, `title_changed`, `project_set`, `language_detected`,
-  `session_continued`, `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
+  `audio_started`, `session_continued`, `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
   last line is ignored on replay.
 - `session.json`: a snapshot written on Stop and after edits, plus hashes of files Kikitori
   wrote.
 - `transcript.md`: written on Stop and after edits.
 - `levels.bin`: each side's level ten times a second, drawn as the session's line.
+- `audio/0001.ogg` (`0002` for a continuation, FR-08): the recording's sound (FR-09), all sources
+  mixed, Opus at 24 kb/s in Ogg (about 11 MB an hour). The file's time is session time from
+  where the log's `audio_started` says it starts; pauses are silence.
 - `images/`: screenshots.
 
 Session IDs are ULIDs; segment, image and marker IDs count up within a session. Shown times are

@@ -1,4 +1,5 @@
 import { Camera, ChevronDown, Copy, Ellipsis, FileOutput, Pause, Play, Scissors, Square, Star } from "lucide-react";
+import { useSessionAudio, type Player } from "../hooks/useSessionAudio";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useElapsed } from "../hooks/useElapsed";
@@ -368,6 +369,8 @@ export function Deck({
   const latest = useRef({ items, durationMs, two, sound });
   latest.current = { items, durationMs, two, sound };
   const [scrub, setScrub] = useState<{ x: number; ms: number } | null>(null);
+  const player = useSessionAudio(state === "review");
+  const playingMs = store((s) => s.playingMs);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -594,7 +597,9 @@ export function Deck({
       {state === "start" && <StartRow compact={compact} onHover={hover} />}
       {(state === "recording" || state === "paused") && <LiveRow compact={compact} paused={state === "paused"} />}
       {state === "finishing" && <FinishingRow />}
-      {state === "review" && sessionId && <ReviewRow compact={compact} sessionId={sessionId} folder={folder} onNew={onNew} />}
+      {state === "review" && sessionId && <ReviewRow compact={compact} sessionId={sessionId} folder={folder} onNew={onNew} player={player} />}
+      {/* Where the sound being played is, on the session's line (FR-09). */}
+      {state === "review" && playingMs !== null && total > 0 && <div className="kk-playhead" style={{ left: `${Math.min(100, (playingMs / total) * 100)}%` }} aria-hidden />}
       {state === "review" && !compact && clock && total > 0 && (
         <div className="kk-line-ends num" aria-hidden>
           <span>{clock(0).slice(0, 5)}</span>
@@ -787,8 +792,8 @@ function FinishingRow() {
   );
 }
 
-/** Copy, 書き出し, more, and 「新しい録音」 with the red dot it started from. */
-function ReviewRow({ compact, sessionId, folder, onNew }: { compact: boolean; sessionId: string; folder?: string; onNew: boolean }) {
+/** Play (when the session kept its sound), copy, 書き出し, more, and 「新しい録音」 with the red dot it started from. */
+function ReviewRow({ compact, sessionId, folder, onNew, player }: { compact: boolean; sessionId: string; folder?: string; onNew: boolean; player: Player }) {
   const { t } = useTranslation();
   const setExportFor = useUi((s) => s.setExportFor);
   const more = async () => {
@@ -815,6 +820,18 @@ function ReviewRow({ compact, sessionId, folder, onNew }: { compact: boolean; se
   const act = `kk-act inline-flex shrink-0 items-center gap-2 rounded-[11px] border border-line bg-surface font-semibold whitespace-nowrap transition-colors duration-150 hover:bg-surface-2 ${compact ? "h-9 px-3 text-[12.5px]" : "h-10 px-3 text-[13px]"}`;
   return (
     <div className="kk-row flex items-center gap-2 animate-fade-in [animation-delay:500ms]">
+      {player.available && (
+        <button
+          type="button"
+          className={`${act} justify-center !px-0 ${compact ? "!w-9" : "!w-10"} ${player.playing ? "!border-fg !bg-fg !text-bg" : ""}`}
+          onClick={player.toggle}
+          aria-pressed={player.playing}
+          aria-label={player.playing ? t("pausePlayback") : t("play")}
+          title={player.playing ? t("pausePlayback") : t("play")}
+        >
+          {player.playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
+        </button>
+      )}
       <button type="button" className={act} onClick={() => copy("plain", sessionId)}>
         <Copy size={15} />
         {t("copy")}

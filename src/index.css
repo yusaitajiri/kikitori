@@ -515,6 +515,23 @@
   animation: kk-fade-in 300ms ease-out 600ms both;
 }
 /* Pointing at a finished session's line: when that was. */
+/* The sound being played: the session's line, marked where it is (FR-09). */
+.kk-playhead {
+  position: absolute;
+  top: calc(var(--kk-b) - 16px);
+  height: 28px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--kk-text);
+  pointer-events: none;
+  transition: left 250ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kk-playhead {
+    transition: none;
+  }
+}
 .kk-scrub {
   position: absolute;
   top: calc(var(--kk-b) - 22px);

@@ -16,6 +16,7 @@ use super::source::RawChunk;
 use crate::asr::worker::{AsrWorker, Job, JobKind, SessionCtx};
 use crate::platform;
 use crate::segmenter::{SegEvent, Segmenter, SegmenterConfig};
+use crate::session::audio::AudioChunk;
 use crate::session::model::SourceId;
 use crate::vad::{EarshotVad, Vad};
 
@@ -122,6 +123,8 @@ pub struct DspParams {
     pub pad_quiet_stream: bool,
     /// Session time where this stream starts (0, or the resume time after a pause).
     pub start_ms: u64,
+    /// Where the 16 kHz audio goes to be kept (FR-09), if it is.
+    pub audio: Option<crossbeam_channel::Sender<crate::session::audio::AudioChunk>>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -299,6 +302,10 @@ impl Dsp {
     }
 
     fn feed(&mut self, samples: &[f32]) {
+        if let Some(tx) = &self.params.audio {
+            let chunk = AudioChunk { source: self.params.source, pos: self.position_16k(), samples: samples.to_vec() };
+            let _ = tx.send(chunk);
+        }
         self.summary.samples_16k += samples.len() as u64;
         self.pending.extend_from_slice(samples);
         let fl = self.seg.frame_len();
@@ -483,6 +490,7 @@ mod tests {
             partials: false,
             pad_quiet_stream: false,
             start_ms: 0,
+            audio: None,
         };
         let ctx_seen = ctx.clone();
         let handle =

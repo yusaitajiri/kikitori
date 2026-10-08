@@ -181,6 +181,18 @@ found a reason to deviate.
   source that fails leaves the session as it was; a session that ended in a crash is recovered
   first. The title, project and model of record stay the session's; the source is whatever the
   picker holds now, and new sources join its list.
+- **The sound is one Opus file per recording** (FR-09). The DSP threads already make 16 kHz
+  mono audio placed in session time, so they hand it to one writer thread, which adds the
+  sources together by position (a source that sent nothing for 1.5 s stops holding the mix
+  back), fills a pause with silence, and encodes 20 ms frames. Opus (libopus 1.6, built from
+  `opusic-c`'s bundled source) at 24 kb/s keeps speech clear in about 11 MB an hour, against
+  115 MB for WAV; WebView2 plays and seeks Ogg Opus itself. A page, and a flush, about once a
+  second: a crashed recording's file plays up to its last second, checked in Chromium. One
+  mixed file rather than one per source, because playback is for listening back, where both
+  sides belong together. A continuation writes the next file, as an Ogg stream cannot simply be
+  appended to; playing runs from one into the next. Encoding takes well under 1% of a core. It
+  is on by default (the point of keeping it is having it when wanted) and can be turned off in
+  設定 › 音声.
 - **Unprocessed audio** after 処理を中止 is recorded as an `unprocessed` marker and
   `unprocessedMs`, rendered as 「（以降、未処理の音声 N 秒）」.
 - **Exports are Japanese** in any UI locale: the session stores 自分 / 相手 and the spec defines
@@ -333,6 +345,13 @@ found a reason to deviate.
   started by accident) is greyed out and has no line; it still opens, and its menu still deletes
   it. 選択 picks several recordings to move to the Recycle Bin at once (`delete_sessions`), with
   quick picks for all and for the greyed short and empty ones.
+- **Playing back** is a ▶ in each line's hover actions (any line plays from where it starts) and
+  a play button first in a finished session's row; while it plays the button is inverted like
+  the paused pause button, the line being played has the soft background a jump uses, and a
+  2 px ink playhead moves along the session's line, stepping four times a second with a 250 ms
+  glide instead of redrawing every frame (see the cost of per-frame redraws above). The
+  transcript keeps up with the sound unless the reader has scrolled away from the playing line.
+  Not while recording: the file is still being written.
 - **続きを録音 is in the ⋯ menus** (a finished session's and History's rows), not a button of its
   own: the finished session's row already holds four buttons in the compact window, and
   continuing is rarer than starting anew. It records with the source the picker holds and opens

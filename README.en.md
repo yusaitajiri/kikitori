@@ -55,6 +55,7 @@ Before you record anyone, let them know.
 | Mark something important | The **star** button while recording (it marks the line being said). Each line's star adds or removes the mark too; exports start such lines with ★ |
 | Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for AI agents |
 | See past recordings | **History** in the title bar. You can also fix or delete lines there |
+| Listen back | A line's **▶** plays from that line, the play button below from the start (the sound takes about 11 MB an hour; turn it off in **Settings → Audio**) |
 | Add to a recording you stopped | **Continue recording** in its ⋯ menu (or History's ⋯); the new part follows the old one |
 | Group recordings into projects | Pick a project from the square beside a recording's title, a finished recording's header, or History's ⋯ and **Select**. History filters by project; **Settings → Projects** renames and recolours them |
 

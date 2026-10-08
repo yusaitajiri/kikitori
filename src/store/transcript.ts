@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import type {
+  AudioFile,
   MarkerPayload,
   PartialPayload,
   ScreenshotPayload,
@@ -27,6 +28,12 @@ export type TranscriptState = {
   project?: string;
   /** Later recordings onto the session (FR-08), for its clock times. */
   continued: Continuation[];
+  /** Each recording's sound (FR-09). */
+  audio: AudioFile[];
+  /** A moment to play from (ms into the session), asked for by a line; `n` counts requests. */
+  play?: { ms: number; n: number };
+  /** Where the sound being played is, or `null` when nothing plays. */
+  playingMs: number | null;
   sources: SourceInfo[];
   /** How the finished session sounded, for its line; missing when the session has no `levels.bin`. */
   sound?: Sound;
@@ -49,6 +56,8 @@ export type TranscriptState = {
   setPartial: (p: PartialPayload) => void;
   setTitle: (title: string) => void;
   setProject: (project?: string) => void;
+  playFrom: (ms: number) => void;
+  setPlaying: (ms: number | null) => void;
   seekTo: (ms: number) => void;
 };
 
@@ -64,6 +73,9 @@ const empty = {
   gpu: undefined,
   project: undefined,
   continued: [],
+  audio: [],
+  play: undefined,
+  playingMs: null,
   sources: [],
   sound: undefined,
   items: [],
@@ -101,6 +113,7 @@ export function createTranscriptStore(): TranscriptStore {
           gpu: s.gpu,
           project: s.project,
           continued: s.continued ?? [],
+          audio: s.audio ?? [],
           sources: s.sources,
           sound: s.sound,
           // Keep live items that may have arrived while loading.
@@ -155,6 +168,8 @@ export function createTranscriptStore(): TranscriptStore {
         }),
       setTitle: (title) => set({ title }),
       setProject: (project) => set({ project }),
+      playFrom: (ms) => set((s) => ({ play: { ms, n: (s.play?.n ?? 0) + 1 } })),
+      setPlaying: (playingMs) => set({ playingMs }),
       seekTo: (ms) => set((s) => ({ seek: { ms, n: (s.seek?.n ?? 0) + 1 } })),
     };
   });

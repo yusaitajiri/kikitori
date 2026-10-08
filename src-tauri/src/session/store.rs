@@ -286,6 +286,7 @@ mod tests {
             unprocessed_ms: 0,
             project: None,
             continued: Vec::new(),
+            audio: Vec::new(),
         };
         let log = SessionLog::create(dir).unwrap();
         let rec = Arc::new(Recorded::default());

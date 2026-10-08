@@ -1,5 +1,6 @@
 //! Sessions: one folder per recording, an append-only event log, and recovery.
 
+pub mod audio;
 pub mod levels;
 pub mod log;
 pub mod model;

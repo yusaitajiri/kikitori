@@ -153,6 +153,18 @@ pub struct Session {
     /// Later recordings onto this session (FR-08), in order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub continued: Vec<Continuation>,
+    /// The sound of each recording (FR-09), in order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub audio: Vec<AudioFile>,
+}
+
+/// A recording's sound (FR-09): `file` (relative to the session folder) plays session time from
+/// `start_ms` on.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioFile {
+    pub file: String,
+    pub start_ms: u64,
 }
 
 /// A later recording onto a saved session (FR-08). It starts just after the session's end, so

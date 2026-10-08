@@ -71,6 +71,7 @@ export type Settings = {
   export: { timestamps: boolean; labels: LabelMode; mergeParagraphs: boolean };
   copy: { screenshotMarkers: boolean };
   autoCopyOnStop: boolean;
+  audio: { record: boolean };
 };
 
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
@@ -169,7 +170,12 @@ export type Session = {
   project?: string;
   /** Later recordings onto the session (FR-08). */
   continued?: { atMs: number; startedAt: string }[];
+  /** Each recording's sound (FR-09). */
+  audio?: AudioFile[];
 };
+
+/** A recording's sound (FR-09): `file`, relative to the session folder, plays from session time `startMs`. */
+export type AudioFile = { file: string; startMs: number };
 
 /** A named, coloured group of sessions (FR-64); `color` is one of `PROJECT_COLORS`. */
 export type Project = { id: string; name: string; color: string };
