@@ -4,6 +4,8 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-08
+
 ### Added
 
 - A star button while recording marks the line being said as important, even before its text arrives; any line's star adds or removes the mark later. Exports and copies start important lines with ★, and the prompt for AI agents explains it.
