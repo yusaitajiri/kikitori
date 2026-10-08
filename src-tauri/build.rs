@@ -14,6 +14,7 @@ const COMMANDS: &[&str] = &[
     "resume_recording",
     "switch_to_system",
     "take_screenshot",
+    "add_cut",
     "get_session",
     "copy_transcript",
     "export_markdown",

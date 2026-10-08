@@ -143,6 +143,7 @@ pub fn marker_text(session: &Session, marker: &Marker) -> String {
         MarkerKind::SourceReattached => format!("{time} 音声ソース再接続"),
         MarkerKind::Paused => format!("{time} 一時停止"),
         MarkerKind::Resumed => format!("{time} 再開"),
+        MarkerKind::Cut => format!("{time} 区切り"),
         MarkerKind::Unprocessed => {
             format!("以降、未処理の音声 {} 秒", marker.detail.as_deref().unwrap_or("?"))
         }

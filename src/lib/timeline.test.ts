@@ -61,8 +61,15 @@ describe("orderTimeline", () => {
 
   it("puts markers on a tie around the lines they describe", () => {
     expect(
-      ids([seg("seg_000002", "app", 5000, 6000), marker("mk_0002", 5000, "resumed"), marker("mk_0001", 2000, "paused"), seg("seg_000001", "app", 2000, 2000)]),
-    ).toEqual(["seg_000001", "mk_0001", "mk_0002", "seg_000002"]);
+      ids([
+        seg("seg_000002", "app", 5000, 6000),
+        marker("mk_0002", 5000, "resumed"),
+        marker("mk_0001", 2000, "paused"),
+        seg("seg_000001", "app", 2000, 2000),
+        seg("seg_000003", "app", 8000, 9000),
+        marker("mk_0003", 8000, "cut"),
+      ]),
+    ).toEqual(["seg_000001", "mk_0001", "mk_0002", "seg_000002", "mk_0003", "seg_000003"]);
   });
 
   it("places provisional text at its utterance start", () => {

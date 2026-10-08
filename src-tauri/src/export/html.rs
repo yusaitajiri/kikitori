@@ -47,6 +47,7 @@ figure { margin: 8pt 0 10pt; break-inside: avoid; page-break-inside: avoid; }
 figure img { display: block; max-width: 100%; height: auto; border: 0.5pt solid #ccc; }
 figcaption { color: #555; font-size: 9pt; margin-top: 3pt; }
 .marker { color: #666; font-style: italic; text-align: center; margin: 6pt 0; }
+h2.cut { font-size: 9.5pt; color: #666; font-variant-numeric: tabular-nums; border-bottom: 0.5pt solid #ccc; padding-bottom: 2pt; margin: 16pt 0 8pt; break-after: avoid; page-break-after: avoid; }
 "#;
 
 pub fn render(session: &Session, opts: &ExportOptions) -> String {
@@ -94,6 +95,9 @@ pub fn render_linking(session: &Session, opts: &ExportOptions, link: &dyn Fn(&Sc
             }
             Block::Marker(marker) if marker.kind == MarkerKind::Unprocessed => {
                 body.push_str(&format!("<p class=\"marker\">（{}）</p>\n", escape(&marker_text(session, marker))));
+            }
+            Block::Marker(marker) if marker.kind == MarkerKind::Cut => {
+                body.push_str(&format!("<h2 class=\"cut\">{}</h2>\n", clock(session, marker.t_ms)));
             }
             Block::Marker(marker) => {
                 body.push_str(&format!("<p class=\"marker\">— {} —</p>\n", escape(&marker_text(session, marker))));

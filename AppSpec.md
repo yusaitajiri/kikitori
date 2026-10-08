@@ -84,6 +84,7 @@ items (section 19).
 | FR-03 | Recording | While recording: a red dot, elapsed time (without paused time), each source's level drawn as the live line, and the tray in its recording state. |
 | FR-04 | Recording | On Stop, transcribe all queued audio with progress, then save the session. |
 | FR-05 | Recording | Pause and resume, with markers in the timeline. |
+| FR-06 | Recording | A cut button starts a new part of the session (a new topic or scene), recorded as a `cut` marker; exports head each part with its time. |
 | FR-10 | Sources | Sources: the whole system, the mic alone, or one app. |
 | FR-11 | Sources | The app list puts apps with an audio session first, each showing its live sound, then other apps with windows; it has a refresh button. |
 | FR-12 | Sources | 「会話として録音」 (on by default) adds the mic to an app or system recording, labelling lines 自分 (mic) and 相手 (the rest). |
@@ -319,7 +320,7 @@ not black, in screenshots and in the user's screen share. On by default.
 while an elevated app has focus.
 
 **Placement rule.** Strictly chronological, so the times shown never go backwards. A segment
-sorts at its start, a screenshot or marker at its own time. On a tie: resume and reattach
+sorts at its start, a screenshot or marker at its own time. On a tie: resume, reattach and cut
 markers, then segments (相手 before 自分), then screenshots, then pause and unprocessed markers,
 then IDs. `order_timeline` in Rust (exports) and `orderTimeline` in TypeScript (live view) are
 the same pure function; a late segment re-sorts, it is never appended. Partials sort at their
@@ -396,6 +397,8 @@ app: Kikitori 0.1.0
 - Japanese joins without a space; a space goes only between Latin letters or digits (and after
   Latin sentence punctuation).
 - Settings: timestamps on/off; labels on, off or auto (only when there are two sources).
+- A cut (FR-06) is a `## HH:MM:SS` heading, so a reader or an agent sees the session's parts;
+  other markers are italic lines as above.
 - Image links are relative. Alt text is the caption, else 「HH:MM:SS のスクリーンショット」; a
   caption is also an italic line under the image.
 - If the user edited `transcript.md` (its hash differs from what Kikitori wrote), Kikitori writes

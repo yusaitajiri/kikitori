@@ -56,6 +56,10 @@ enum DocBlock {
     Note {
         text: String,
     },
+    /// A new part of the session, headed by its time.
+    Cut {
+        time: String,
+    },
 }
 
 /// A screenshot's path inside the session folder; nothing may point outside it.
@@ -99,6 +103,9 @@ fn doc(session: &Session, opts: &ExportOptions, mut image: impl FnMut(&Screensho
             }
             Block::Marker(marker) if marker.kind == MarkerKind::Unprocessed => {
                 DocBlock::Note { text: format!("（{}）", marker_text(session, marker)) }
+            }
+            Block::Marker(marker) if marker.kind == MarkerKind::Cut => {
+                DocBlock::Cut { time: clock(session, marker.t_ms) }
             }
             Block::Marker(marker) => DocBlock::Note { text: format!("— {} —", marker_text(session, marker)) },
         });
@@ -158,6 +165,7 @@ fn source(doc: &Doc, first_line: &str) -> String {
                 out.push_str(&format!("#shot({}, {width_mm:.1}mm, {})\n", string(file), string(caption)));
             }
             DocBlock::Note { text } => out.push_str(&format!("#note({})\n", string(text))),
+            DocBlock::Cut { time } => out.push_str(&format!("#cut({})\n", string(time))),
         }
     }
     out
@@ -282,7 +290,7 @@ pub fn render(session: &Session, opts: &ExportOptions, folder: &Path, app_versio
 mod tests {
     use super::*;
     use crate::export::test_support::*;
-    use crate::session::model::TimelineItem;
+    use crate::session::model::{Marker, TimelineItem};
 
     fn images(d: &Doc) -> Vec<&DocBlock> {
         d.blocks.iter().filter(|b| matches!(b, DocBlock::Image { .. })).collect()
@@ -325,6 +333,7 @@ mod tests {
                 },
                 DocBlock::Image { file: "images/1.png".into(), width_mm: 112.5, caption: "c".into() },
                 DocBlock::Note { text: "n".into() },
+                DocBlock::Cut { time: "15:10:00".into() },
             ],
         };
         let src = source(&d, "// first");
@@ -332,7 +341,7 @@ mod tests {
         assert!(src.ends_with(
             "#set document(title: \"T\\\"#\")\n#header(\"T\\\"#\", \"m\")\n\n\
              #entry(time: \"15:00:00\", label: \"自分\", me: true, \"]) #evil\")\n\
-             #shot(\"images/1.png\", 112.5mm, \"c\")\n#note(\"n\")\n"
+             #shot(\"images/1.png\", 112.5mm, \"c\")\n#note(\"n\")\n#cut(\"15:10:00\")\n"
         ));
     }
 
@@ -376,7 +385,18 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("images")).unwrap();
         image::RgbImage::new(2400, 1350).save(dir.path().join("images/0001_151603.png")).unwrap();
-        let pdf = render(&meeting(), &ExportOptions::default(), dir.path(), "0.1.0").unwrap();
+        // With a cut, so its heading is laid out too.
+        let mut s = meeting();
+        s.items.push(TimelineItem::Marker(Marker {
+            id: "mk_0002".into(),
+            t_ms: at(15, 16, 5),
+            kind: MarkerKind::Cut,
+            detail: None,
+        }));
+        assert!(
+            doc(&s, &ExportOptions::default(), |_| None).blocks.contains(&DocBlock::Cut { time: "15:16:05".into() })
+        );
+        let pdf = render(&s, &ExportOptions::default(), dir.path(), "0.1.0").unwrap();
         assert!(pdf.starts_with(b"%PDF-") && pdf.len() > 10_000, "{} bytes", pdf.len());
     }
 }

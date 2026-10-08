@@ -88,6 +88,8 @@ pub enum MarkerKind {
     Resumed,
     SourceReattached,
     Unprocessed,
+    /// The user started a new part of the session (a new topic or scene).
+    Cut,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -180,7 +182,7 @@ pub struct ItemRef(pub usize);
 /// time: a segment sorts at its start, a screenshot or marker at its own time, so the
 /// timestamps shown never go backwards.
 ///
-/// On a tie, a resume or reattach marker comes first (what follows belongs after it), then
+/// On a tie, a resume, reattach or cut marker comes first (what follows belongs after it), then
 /// segments (相手 before 自分), then screenshots, then pause and unprocessed markers; the ID
 /// breaks any remaining tie, which keeps capture order.
 pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
@@ -193,7 +195,7 @@ pub fn order_timeline(items: &[TimelineItem]) -> Vec<ItemRef> {
             TimelineItem::Screenshot(s) => (s.t_ms, 2, 0, s.id.as_str(), idx),
             TimelineItem::Marker(m) => {
                 let rank = match m.kind {
-                    MarkerKind::Resumed | MarkerKind::SourceReattached => 0,
+                    MarkerKind::Resumed | MarkerKind::SourceReattached | MarkerKind::Cut => 0,
                     MarkerKind::Paused | MarkerKind::Unprocessed => 3,
                 };
                 (m.t_ms, rank, 0, m.id.as_str(), idx)
@@ -312,8 +314,10 @@ pub(crate) mod tests {
             marker("mk_0002", 5000, MarkerKind::Resumed),
             marker("mk_0001", 2000, MarkerKind::Paused),
             seg("seg_000001", SourceId::App, 2000, 2000, "before pause"),
+            seg("seg_000003", SourceId::App, 8000, 9000, "first of a part"),
+            marker("mk_0003", 8000, MarkerKind::Cut),
         ];
-        assert_eq!(ids(&items), ["seg_000001", "mk_0001", "mk_0002", "seg_000002"]);
+        assert_eq!(ids(&items), ["seg_000001", "mk_0001", "mk_0002", "seg_000002", "mk_0003", "seg_000003"]);
     }
 
     #[test]

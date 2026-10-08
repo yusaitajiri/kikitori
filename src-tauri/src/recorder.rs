@@ -647,6 +647,15 @@ pub fn switch_to_system(app: &AppHandle, st: &AppState) -> AppResult<()> {
     Ok(())
 }
 
+/// Cut (FR-06): a new part of the session starts now. Works while paused too, so a break can
+/// end one part.
+pub fn add_cut(st: &AppState) -> AppResult<()> {
+    let rec = st.recorder.lock();
+    let Phase::Recording(active) = &*rec else { return Err(AppError::internal("not recording")) };
+    active.store.add_marker(active.now_ms(), MarkerKind::Cut, None);
+    Ok(())
+}
+
 /// Screenshot (FR-30, FR-31). The time is read before any capture work.
 pub fn take_screenshot(app: &AppHandle, st: &AppState) -> AppResult<ShotResponse> {
     let (store, t_ms, root_pid) = {

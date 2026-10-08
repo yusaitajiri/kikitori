@@ -140,6 +140,11 @@ found a reason to deviate.
 - **`session.json`** also stores the SHA-256 of files Kikitori wrote (`written`), which is how
   an edited `transcript.md` is detected and never overwritten.
 - **Rename** changes the title only; the folder keeps its original name.
+- **A cut is a marker** (`cut`, FR-06), not a new session: the part shares the session's
+  sound, line and folder, and a cut needs no new event in the log. It works while paused, so
+  a break can end a part. Markdown heads the part with `## HH:MM:SS`, the PDF with the time
+  over a hairline as a heading (so the PDF outline lists the parts), and plain text with
+  「— HH:MM:SS 区切り —」. Parts have no names yet; the marker's `detail` would hold one.
 - **Unprocessed audio** after 処理を中止 is recorded as an `unprocessed` marker and
   `unprocessedMs`, rendered as 「（以降、未処理の音声 N 秒）」.
 - **Exports are Japanese** in any UI locale: the session stores 自分 / 相手 and the spec defines
@@ -332,6 +337,12 @@ found a reason to deviate.
   every sentence containing its time put it after sentences that started later: Whisper often
   cuts one utterance into back-to-back segments, and a segment starting exactly at the
   containing one's end counted as inside.
+- **最新へ jumps from far away.** More than two screens above the newest line it scrolls there
+  at once instead of gliding: in a long session left in the background the glide took seconds,
+  and rows measured on the way kept moving the end.
+- **The cut button** (scissors) sits after the camera while recording. A cut shows in the
+  transcript as a marker with a darker rule and more space above it, and a toast confirms it,
+  since the compact window's two lines leave markers out.
 - **The timer leaves out paused time** (`StatePayload.elapsedMs`); session times still count
   it, so the clock times in the transcript stay true.
 - **Animations** are CSS plus the deck's own frames; what is above the line fades between the

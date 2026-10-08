@@ -2,6 +2,16 @@
 
 All notable changes are listed here. Versions follow [SemVer](https://semver.org/); `src-tauri/tauri.conf.json` holds the current version.
 
+## [Unreleased]
+
+### Added
+
+- A cut button while recording starts a new part of the session. The transcript shows the cut, Markdown exports head each part with `## HH:MM:SS`, and the PDF lists the parts in its outline.
+
+### Changed
+
+- 最新へ jumps straight to the newest line when it is far away, instead of gliding there for seconds in a long session.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added

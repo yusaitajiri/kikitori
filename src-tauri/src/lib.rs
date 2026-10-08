@@ -133,6 +133,7 @@ pub fn run() {
             commands::resume_recording,
             commands::switch_to_system,
             commands::take_screenshot,
+            commands::add_cut,
             commands::get_session,
             commands::copy_transcript,
             commands::export_markdown,

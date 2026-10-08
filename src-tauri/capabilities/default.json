@@ -21,6 +21,7 @@
     "allow-resume-recording",
     "allow-switch-to-system",
     "allow-take-screenshot",
+    "allow-add-cut",
     "allow-get-session",
     "allow-copy-transcript",
     "allow-export-markdown",

@@ -37,6 +37,7 @@ export const commands = {
   resumeRecording: () => invoke<void>("resume_recording"),
   switchToSystem: () => invoke<void>("switch_to_system"),
   takeScreenshot: () => invoke<{ id: string; tMs: number }>("take_screenshot"),
+  addCut: () => invoke<void>("add_cut"),
   getSession: (sessionId: string) => invoke<SessionView>("get_session", { sessionId }),
   copyTranscript: (sessionId: string, format: "plain" | "agent" | "markdown") =>
     invoke<{ chars: number }>("copy_transcript", { sessionId, format }),

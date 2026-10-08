@@ -80,6 +80,10 @@ fn body_linking(session: &Session, opts: &ExportOptions, link: &dyn Fn(&Screensh
             Block::Marker(marker) if marker.kind == MarkerKind::Unprocessed => {
                 parts.push(format!("（{}）", marker_text(session, marker)));
             }
+            // A cut opens a section, so a reader (or an agent) sees the session's parts.
+            Block::Marker(marker) if marker.kind == MarkerKind::Cut => {
+                parts.push(format!("## {}", clock(session, marker.t_ms)));
+            }
             Block::Marker(marker) => parts.push(format!("*— {} —*", marker_text(session, marker))),
         }
     }
@@ -193,7 +197,7 @@ mod tests {
     use super::*;
     use crate::export::LabelMode;
     use crate::export::test_support::*;
-    use crate::session::model::{SourceId, TimelineItem, tests::seg};
+    use crate::session::model::{Marker, SourceId, TimelineItem, tests::seg};
 
     const META: MarkdownMeta = MarkdownMeta { app_version: "0.1.0" };
 
@@ -219,6 +223,29 @@ mod tests {
         let s = session(vec![seg("seg_000001", SourceId::App, 0, 100, "# 見出し*ではない*")], false);
         let opts = ExportOptions { timestamps: false, labels: LabelMode::Off, ..Default::default() };
         assert!(body(&s, &opts).contains("\n\n\\# 見出し\\*ではない\\*\n"));
+    }
+
+    #[test]
+    fn a_cut_opens_a_section() {
+        let mut s = meeting();
+        s.items.push(TimelineItem::Marker(Marker {
+            id: "mk_0002".into(),
+            t_ms: at(15, 16, 5),
+            kind: MarkerKind::Cut,
+            detail: None,
+        }));
+        let md = body(&s, &ExportOptions::default());
+        assert!(
+            md.contains(
+                "
+
+## 15:16:05
+
+**[15:16:05] 自分:** よろしくお願いします。
+"
+            ),
+            "{md}"
+        );
     }
 
     #[test]

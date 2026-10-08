@@ -160,6 +160,16 @@ export async function openFolder(folder = useRecording.getState().folder ?? useT
   if (folder) await commands.openPath(folder).catch((e) => reportError(e));
 }
 
+/** Starts a new part of the session (FR-06); the transcript shows it as a cut. */
+export async function addCut() {
+  try {
+    await commands.addCut();
+    useUi.getState().toast(t("cutAdded"));
+  } catch (e) {
+    reportError(e);
+  }
+}
+
 export async function pauseOrResume() {
   const state = useRecording.getState().state;
   try {

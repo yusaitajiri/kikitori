@@ -134,7 +134,7 @@ export type Screenshot = {
   caption?: string;
 };
 
-export type MarkerType = "paused" | "resumed" | "source_reattached" | "unprocessed";
+export type MarkerType = "paused" | "resumed" | "source_reattached" | "unprocessed" | "cut";
 
 export type Marker = { id: string; tMs: number; type: MarkerType; detail?: string };
 

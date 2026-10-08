@@ -265,6 +265,11 @@ pub async fn take_screenshot(app: AppHandle) -> AppResult<ShotResponse> {
     blocking(app, recorder::take_screenshot).await
 }
 
+#[tauri::command]
+pub async fn add_cut(app: AppHandle) -> AppResult<()> {
+    blocking(app, |_, st| recorder::add_cut(st)).await
+}
+
 fn root(st: &AppState) -> PathBuf {
     PathBuf::from(&st.settings.read().output.root)
 }

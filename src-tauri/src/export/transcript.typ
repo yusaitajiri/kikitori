@@ -1,5 +1,5 @@
 // The look of a Kikitori transcript (export/typst_pdf.rs). The session follows this preamble as
-// calls to `header`, `entry`, `shot` and `note`, its text in strings, so none of it is read as
+// calls to `header`, `entry`, `shot`, `note` and `cut`, its text in strings, so none of it is read as
 // markup. White paper, ink, and red for the voice you hear (相手).
 
 #let ink = rgb("#121214")
@@ -59,3 +59,13 @@
 
 // A pause, a reconnected source or audio left unprocessed.
 #let note(body) = align(center, text(9.5pt, fill: muted, style: "italic", body))
+
+// A cut: a new part of the session, its time over a hairline. A heading, so the PDF's outline
+// lists the parts.
+#show heading.where(level: 2): it => block(above: 1.6em, below: 0.9em, sticky: true, {
+  set text(9.5pt, weight: "bold", fill: muted, number-width: "tabular")
+  it.body
+  v(-0.55em)
+  line(length: 100%, stroke: 0.5pt + hairline)
+})
+#let cut(time) = heading(level: 2, time)

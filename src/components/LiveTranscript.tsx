@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, Camera, Check, ImagePlus, Link2, Pause, Pencil, Play, Scissors, Trash2, TriangleAlert, X } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { commands } from "../ipc/commands";
@@ -19,6 +19,9 @@ type Row =
 
 /** A new turn (speaker and time shown) starts at a speaker change, after a picture or marker, and every minute. */
 const TURN_MS = 60_000;
+
+/** Further than this many screens from the newest line, 最新へ jumps instead of gliding. */
+const FAR_SCREENS = 2;
 
 function useRows(withHeader: boolean): { rows: Row[]; twoSpeakers: boolean; startedAt?: string } {
   const store = useTranscriptStore();
@@ -269,17 +272,22 @@ function MarkerRow({ marker, startedAt }: { marker: Marker; startedAt?: string }
         ? [Pause, t("markerPaused")]
         : marker.type === "resumed"
           ? [Play, t("markerResumed")]
-          : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
-  // A pause or a gap had no sound, so its line stays flat.
+          : marker.type === "cut"
+            ? [Scissors, t("markerCut")]
+            : [TriangleAlert, t("markerUnprocessed", { n: marker.detail ?? "?" })];
+  // A pause or a gap had no sound, so its line stays flat. A cut starts a part, so its line is
+  // darker and it stands further from the part before.
+  const cut = marker.type === "cut";
+  const rule = `h-px flex-1 ${cut ? "bg-line-strong" : "bg-line"}`;
   return (
-    <div className={`flex items-center gap-3 px-[18px] py-3 ${fresh ? "animate-fade-up" : ""}`}>
-      <span className="h-px flex-1 bg-line" />
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+    <div className={`flex items-center gap-3 px-[18px] ${cut ? "pt-6 pb-2" : "py-3"} ${fresh ? "animate-fade-up" : ""}`}>
+      <span className={rule} />
+      <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${cut ? "text-fg" : "text-muted"}`}>
         <Icon size={11} aria-hidden />
         {text}
         {marker.type !== "unprocessed" && <span className="num font-normal">{time}</span>}
       </span>
-      <span className="h-px flex-1 bg-line" />
+      <span className={rule} />
     </div>
   );
 }
@@ -350,7 +358,11 @@ export function Transcript({ editable, header, live }: { editable: boolean; head
 
   const scrollToEnd = (smooth: boolean) => {
     const el = parentRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    if (!el) return;
+    // From far up (a long session left in the background) a glide takes seconds, and rows
+    // measured on the way keep moving the end; jump there instead.
+    const far = el.scrollHeight - el.scrollTop - el.clientHeight > FAR_SCREENS * el.clientHeight;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth && !far ? "smooth" : "auto" });
   };
 
   // Follow new lines, and rows that grow once measured (a picture loading); wait a frame so
