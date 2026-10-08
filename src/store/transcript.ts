@@ -22,6 +22,8 @@ export type TranscriptState = {
   durationMs?: number;
   modelId?: string;
   gpu?: boolean;
+  /** The project's ID (FR-64). */
+  project?: string;
   sources: SourceInfo[];
   /** How the finished session sounded, for its line; missing when the session has no `levels.bin`. */
   sound?: Sound;
@@ -43,6 +45,7 @@ export type TranscriptState = {
   addMarker: (p: MarkerPayload) => void;
   setPartial: (p: PartialPayload) => void;
   setTitle: (title: string) => void;
+  setProject: (project?: string) => void;
   seekTo: (ms: number) => void;
 };
 
@@ -56,6 +59,7 @@ const empty = {
   durationMs: undefined,
   modelId: undefined,
   gpu: undefined,
+  project: undefined,
   sources: [],
   sound: undefined,
   items: [],
@@ -91,6 +95,7 @@ export function createTranscriptStore(): TranscriptStore {
           durationMs: s.durationMs,
           modelId: s.model.id,
           gpu: s.gpu,
+          project: s.project,
           sources: s.sources,
           sound: s.sound,
           // Keep live items that may have arrived while loading.
@@ -144,6 +149,7 @@ export function createTranscriptStore(): TranscriptStore {
           return { partials };
         }),
       setTitle: (title) => set({ title }),
+      setProject: (project) => set({ project }),
       seekTo: (ms) => set((s) => ({ seek: { ms, n: (s.seek?.n ?? 0) + 1 } })),
     };
   });

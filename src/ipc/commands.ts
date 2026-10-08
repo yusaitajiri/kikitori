@@ -15,6 +15,7 @@ import type {
   SessionSummary,
   SessionView,
   Settings,
+  Project,
   SourceConfig,
   WindowInfo,
 } from "./types";
@@ -49,6 +50,12 @@ export const commands = {
   markSegment: (sessionId: string, segmentId: string, important: boolean) =>
     invoke<Segment>("mark_segment", { sessionId, segmentId, important }),
   getSession: (sessionId: string) => invoke<SessionView>("get_session", { sessionId }),
+  listProjects: () => invoke<Project[]>("list_projects"),
+  createProject: (name: string, color: string) => invoke<Project>("create_project", { name, color }),
+  updateProject: (project: Project) => invoke<Project[]>("update_project", { project }),
+  deleteProject: (id: string) => invoke<Project[]>("delete_project", { id }),
+  /** Puts sessions in a project, or (`null`) in none. */
+  setProject: (sessionIds: string[], project: string | null) => invoke<void>("set_project", { sessionIds, project }),
   copyTranscript: (sessionId: string, format: "plain" | "agent" | "markdown") =>
     invoke<{ chars: number }>("copy_transcript", { sessionId, format }),
   /**

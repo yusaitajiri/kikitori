@@ -1,4 +1,4 @@
-import { Check, Ellipsis, History as HistoryIcon, Search, X } from "lucide-react";
+import { Check, ChevronDown, Ellipsis, History as HistoryIcon, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionLine } from "../components/SessionLine";
@@ -9,7 +9,10 @@ import type { SessionSummary } from "../ipc/types";
 import { openFolder, reportError } from "../lib/actions";
 import { dayName, dayOf, dayText, durationText, timeOf } from "../lib/format";
 import { shapeFromActivity } from "../lib/line";
-import { popupMenu, type MenuEntry } from "../lib/popupMenu";
+import { menuText, popupMenu, type MenuEntry } from "../lib/popupMenu";
+import { ProjectMark } from "../components/Projects";
+import { projectEntries } from "../lib/projects";
+import { projectOf, useProjects } from "../store/projects";
 import { useUi } from "../store/ui";
 
 const norm = (s: string) => s.normalize("NFKC").toLowerCase();
@@ -35,6 +38,7 @@ function Row({ s, onMenu, selecting, checked, onToggle }: { s: SessionSummary; o
   const two = s.sources.includes("mic") && s.sources.some((id) => id !== "mic");
   const empty = isEmptySession(s);
   const shape = useMemo(() => (s.activity ? shapeFromActivity(s.activity) : null), [s.activity]);
+  const project = useProjects((st) => projectOf(st.projects, s.project));
   return (
     <li className="group relative animate-fade-up">
       <button
@@ -47,6 +51,12 @@ function Row({ s, onMenu, selecting, checked, onToggle }: { s: SessionSummary; o
         {selecting && <Tick on={checked} />}
         <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] gap-x-2.5">
           <span className="flex min-w-0 items-center gap-2">
+            {project && (
+              <span title={project.name} className="flex shrink-0">
+                <ProjectMark color={project.color} />
+                <span className="sr-only">{project.name}</span>
+              </span>
+            )}
             <span className={`min-w-0 truncate text-[13.5px] ${empty ? "font-medium" : "font-semibold"}`}>{s.title}</span>
             {s.recoverable && <span className="shrink-0 rounded-[5px] bg-alert px-1.5 text-[10.5px] font-bold text-alert-fg">{t("needsRecovery")}</span>}
           </span>
@@ -71,9 +81,13 @@ function Row({ s, onMenu, selecting, checked, onToggle }: { s: SessionSummary; o
   );
 }
 
+/** Which sessions the list shows: all, one project's, or those in none. */
+type ProjectFilter = { kind: "all" } | { kind: "none" } | { kind: "project"; id: string };
+
 /**
  * Past sessions by day, each with its own line; searchable by title and opening words (FR-62,
- * FR-63). 選択 picks several to move to the Recycle Bin at once, such as all the short and empty ones.
+ * FR-63), and narrowed to one project (FR-64). 選択 picks several to move to the Recycle Bin at
+ * once, such as all the short and empty ones, or to put in a project.
  */
 export function History() {
   const { t, i18n } = useTranslation();
@@ -87,6 +101,14 @@ export function History() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [deletingMany, setDeletingMany] = useState(false);
   const [now] = useState(() => new Date());
+  const [chosenFilter, setFilter] = useState<ProjectFilter>({ kind: "all" });
+  const projects = useProjects((s) => s.projects);
+  const askNewProject = useUi((s) => s.askNewProject);
+  // A deleted project can't stay the filter.
+  const filter = useMemo<ProjectFilter>(
+    () => (chosenFilter.kind === "project" && !projectOf(projects, chosenFilter.id) ? { kind: "all" } : chosenFilter),
+    [chosenFilter, projects],
+  );
 
   const refresh = async () => {
     try {
@@ -96,6 +118,19 @@ export function History() {
       setSessions([]);
     }
   };
+
+  useEffect(() => {
+    void useProjects.getState().load().catch(() => {});
+  }, []);
+
+  // A project changed somewhere (a menu here, the new-project dialog, 設定): reload the rows.
+  useEffect(
+    () =>
+      useProjects.subscribe((s, prev) => {
+        if (s.version !== prev.version) void refresh();
+      }),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   useEffect(() => {
     let alive = true;
@@ -113,7 +148,13 @@ export function History() {
 
   const days = useMemo(() => {
     const q = norm(query.trim());
-    const found = (sessions ?? []).filter((s) => !q || norm(s.title).includes(q) || norm(s.preview).includes(q));
+    const inFilter = (s: SessionSummary) => {
+      const known = projectOf(projects, s.project);
+      if (filter.kind === "none") return !known;
+      if (filter.kind === "project") return known?.id === filter.id;
+      return true;
+    };
+    const found = (sessions ?? []).filter((s) => inFilter(s) && (!q || norm(s.title).includes(q) || norm(s.preview).includes(q)));
     const out: { day: string; items: SessionSummary[] }[] = [];
     for (const s of found) {
       const day = dayOf(s.startedAt);
@@ -122,7 +163,7 @@ export function History() {
       else out.push({ day, items: [s] });
     }
     return out;
-  }, [sessions, query]);
+  }, [sessions, query, filter, projects]);
 
   // Only what the search shows can be selected, so nothing hidden is deleted.
   const visible = useMemo(() => days.flatMap((d) => d.items), [days]);
@@ -176,6 +217,23 @@ export function History() {
     void refresh();
   };
 
+  const assign = (ids: string[], project: string | null) =>
+    void useProjects
+      .getState()
+      .assign(ids, project)
+      .catch((e) => reportError(e, "saveFailed"));
+  const projectMenu = (ids: string[], current?: string) => projectEntries(t, projects, current, (id) => assign(ids, id), () => askNewProject(ids));
+
+  const filterMenu = async () => {
+    const entries: MenuEntry[] = [
+      { text: t("allProjects"), checked: filter.kind === "all", action: () => setFilter({ kind: "all" }) },
+      ...projects.map((p) => ({ text: menuText(p.name), checked: filter.kind === "project" && filter.id === p.id, action: () => setFilter({ kind: "project", id: p.id }) })),
+      { text: t("noProject"), checked: filter.kind === "none", action: () => setFilter({ kind: "none" }) },
+    ];
+    await popupMenu(entries).catch(reportError);
+  };
+  const filtered = filter.kind === "project" ? projectOf(projects, filter.id) : undefined;
+
   const menu = async (s: SessionSummary) => {
     const entries: MenuEntry[] = [
       ...(s.recoverable ? ([{ text: t("recover"), action: () => void run(() => commands.recoverSession(s.id), "recovered") }, "separator"] satisfies MenuEntry[]) : []),
@@ -186,6 +244,7 @@ export function History() {
           setRenaming(s);
         },
       },
+      { text: t("project"), items: projectMenu([s.id], s.project) },
       { text: t("exportDialog"), action: () => setExportFor(s.id) },
       { text: t("openFolder"), action: () => void openFolder(s.folder) },
       "separator",
@@ -212,24 +271,39 @@ export function History() {
           ) : undefined
         }
       >
-        <label className="group relative mt-2.5 block">
-          <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted transition-colors group-focus-within:text-fg" />
-          <input
-            type="search"
-            aria-label={t("searchHistory")}
-            placeholder={t("searchHistory")}
-            className={`${inputClass} !h-[38px] !rounded-[11px] pr-8 pl-9 placeholder:text-muted [&::-webkit-search-cancel-button]:hidden`}
-            value={query}
-            autoFocus
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
-          />
-          {query && (
-            <button type="button" aria-label={t("close")} onClick={() => setQuery("")} className="absolute top-1/2 right-2 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg">
-              <X size={12} />
+        <div className="mt-2.5 flex gap-1.5">
+          <label className="group relative block min-w-0 flex-1">
+            <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted transition-colors group-focus-within:text-fg" />
+            <input
+              type="search"
+              aria-label={t("searchHistory")}
+              placeholder={t("searchHistory")}
+              className={`${inputClass} !h-[38px] !rounded-[11px] pr-8 pl-9 placeholder:text-muted [&::-webkit-search-cancel-button]:hidden`}
+              value={query}
+              autoFocus
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            />
+            {query && (
+              <button type="button" aria-label={t("close")} onClick={() => setQuery("")} className="absolute top-1/2 right-2 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg">
+                <X size={12} />
+              </button>
+            )}
+          </label>
+          {projects.length > 0 && (
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-label={`${t("project")}: ${filtered?.name ?? (filter.kind === "none" ? t("noProject") : t("allProjects"))}`}
+              onClick={filterMenu}
+              className={`flex h-[38px] max-w-[140px] shrink-0 items-center gap-1.5 rounded-[11px] border px-2.5 text-[12.5px] transition-colors hover:border-line-strong ${filter.kind === "all" ? "border-line text-muted" : "border-fg font-semibold"}`}
+            >
+              {filter.kind !== "all" && <ProjectMark color={filtered?.color} />}
+              <span className="min-w-0 truncate">{filtered?.name ?? (filter.kind === "none" ? t("noProject") : t("project"))}</span>
+              <ChevronDown size={13} className="shrink-0 text-muted" />
             </button>
           )}
-        </label>
+        </div>
         {selecting && (
           <div className="mt-2 flex animate-fade-in flex-wrap items-center gap-x-4 gap-y-1 px-0.5">
             <button type="button" className="kk-link !px-0" onClick={() => choose(allChosen ? [] : visible)}>
@@ -281,9 +355,19 @@ export function History() {
           <span className="text-[12.5px] text-muted" aria-live="polite">
             {t("selectedCount", { n: chosen.length })}
           </span>
-          <Button variant="primary" size="lg" disabled={chosen.length === 0} onClick={() => setDeletingMany(true)}>
-            {t("delete")}
-          </Button>
+          <span className="flex gap-2">
+            <Button
+              size="lg"
+              disabled={chosen.length === 0}
+              aria-haspopup="menu"
+              onClick={() => void popupMenu(projectMenu(chosen.map((s) => s.id))).catch(reportError)}
+            >
+              {t("project")}
+            </Button>
+            <Button variant="primary" size="lg" disabled={chosen.length === 0} onClick={() => setDeletingMany(true)}>
+              {t("delete")}
+            </Button>
+          </span>
         </div>
       )}
       {deletingMany && (

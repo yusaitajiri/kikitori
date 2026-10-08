@@ -165,7 +165,12 @@ export type Session = {
   gpu: boolean;
   items: TimelineItem[];
   unprocessedMs?: number;
+  /** The project's ID (FR-64). */
+  project?: string;
 };
+
+/** A named, coloured group of sessions (FR-64); `color` is one of `PROJECT_COLORS`. */
+export type Project = { id: string; name: string; color: string };
 
 /**
  * How each side sounded, in equal slices of a session (0..100): from the levels the line was drawn
@@ -194,6 +199,7 @@ export type SessionSummary = {
    * (0..100); and the slices with a screenshot.
    */
   activity?: { others: number[]; me: number[]; shots: number[] };
+  project?: string;
 };
 
 export type BenchmarkRecord = { seconds: number; tier: "comfortable" | "ok" | "heavy"; gpu: boolean };

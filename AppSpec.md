@@ -116,6 +116,7 @@ items (section 19).
 | FR-61 | Sessions | A crash-safe event log; the next launch offers recovery (Flow D). |
 | FR-62 | Sessions | History, grouped by day: open, re-export, delete one or several (to the Recycle Bin). |
 | FR-63 | Sessions | Rename a session; the default title is the source app's name. |
+| FR-64 | Sessions | Projects: named, coloured groups of sessions. A session joins one from its header (also while recording), History's row menu or a multi-selection; History filters by project; 設定 › プロジェクト renames, recolours and deletes them (deleting keeps the recordings). |
 | FR-70 | Models | The first-run wizard recommends a model and downloads it with resume and checksum check. |
 | FR-71 | Models | Model manager: download, import from a file, delete, switch; size and speed tier shown. |
 | FR-72 | Models | A 10-second benchmark rates how well the PC runs a model. |
@@ -345,6 +346,7 @@ from it, so a crash loses at most the last line.
 | What | Where |
 | --- | --- |
 | Sessions | `Documents\Kikitori\` (configurable) |
+| Projects | `projects.json` beside the session folders (FR-64) |
 | Settings, app state | `%APPDATA%\dev.yusai.kikitori\` (`settings.json`, `state.json`) |
 | Models | `%LOCALAPPDATA%\dev.yusai.kikitori\models\` (large, not roaming) |
 | Logs | `%LOCALAPPDATA%\dev.yusai.kikitori\logs\` |
@@ -354,7 +356,7 @@ characters, `-2` and so on if taken):
 
 - `session.jsonl`: the event log, one JSON object per line with schema version `v`. Events:
   `session_started`, `segment`, `segment_removed`, `segment_edited`, `segment_marked`, `screenshot`,
-  `screenshot_deleted`, `caption_set`, `marker`, `title_changed`, `language_detected`,
+  `screenshot_deleted`, `caption_set`, `marker`, `title_changed`, `project_set`, `language_detected`,
   `session_stopped`. Each is appended and flushed, synced every 5 s and on Stop; a truncated
   last line is ignored on replay.
 - `session.json`: a snapshot written on Stop and after edits, plus hashes of files Kikitori
@@ -400,6 +402,7 @@ app: Kikitori 0.1.0
 *— 15:40:12 音声ソース再接続 —*
 ```
 
+- A session in a project has `project: <name>` in its front matter, after the title.
 - Consecutive lines from one source merge into a paragraph when under 2 s apart, up to 400
   characters, shown at the first line's time.
 - Japanese joins without a space; a space goes only between Latin letters or digits (and after

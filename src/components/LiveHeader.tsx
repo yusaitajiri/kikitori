@@ -7,6 +7,7 @@ import { useSettings } from "../store/settings";
 import { useSource } from "../store/source";
 import { useTranscript } from "../store/transcript";
 import { useUi } from "../store/ui";
+import { ProjectButton } from "./Projects";
 import { SourceSummary } from "./SourcePicker";
 import { inputClass } from "./ui";
 
@@ -68,12 +69,15 @@ function LiveTitle() {
 }
 
 /**
- * The top of the recording view, kept in place above the transcript as it scrolls: the title
- * (click to rename) and what is being recorded, which opens the picker to switch it (FR-17).
+ * The top of the recording view, kept in place above the transcript as it scrolls: its project's
+ * colour (FR-64), the title (click to rename) and what is being recorded, which opens the picker
+ * to switch it (FR-17).
  */
 export function LiveHeader() {
   const open = useUi((s) => s.sourcePanel);
   const setOpen = useUi((s) => s.setSourcePanel);
+  const sessionId = useTranscript((s) => s.sessionId);
+  const project = useTranscript((s) => s.project);
 
   // The choice may be stale: the hotkey starts with the last-used source, and a switch from the
   // compact window is remembered in the settings.
@@ -90,7 +94,10 @@ export function LiveHeader() {
 
   return (
     <div className="mx-[18px] flex shrink-0 animate-fade-in items-center gap-3 border-b border-line py-2">
-      <LiveTitle />
+      <span className="-ml-1.5 flex min-w-0 flex-1 items-center gap-1">
+        {sessionId && <ProjectButton sessionId={sessionId} project={project} bare />}
+        <LiveTitle />
+      </span>
       <SourceSummary className="max-w-[55%] shrink-0 !h-9" open={open} onOpen={() => setOpen(true)} />
     </div>
   );

@@ -63,7 +63,9 @@ pub fn markdown_folder(
     let out = paths::unique_folder(parent, &name);
     std::fs::create_dir_all(&out)?;
     let links = copy_images_into(session, folder, &out.join("images"), "images")?;
-    let doc = markdown::document_linking(session, opts, &MarkdownMeta { app_version }, &|shot| {
+    let project = crate::session::projects::name_for(folder, session);
+    let meta = MarkdownMeta { app_version, project: project.as_deref() };
+    let doc = markdown::document_linking(session, opts, &meta, &|shot| {
         markdown_target(links.get(&shot.file).map_or(shot.file.as_str(), String::as_str))
     });
     recovery::write_atomic(&out.join(markdown::TRANSCRIPT_FILE), doc.as_bytes())?;

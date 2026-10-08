@@ -41,6 +41,9 @@ pub struct SessionSummary {
     pub preview: String,
     /// The session's line in the history list.
     pub activity: Activity,
+    /// Its project's ID (FR-64).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
 }
 
 /// The session's line in `ACTIVITY_SLICES` equal slices: how loud each side was (its `Sound`), or
@@ -81,6 +84,7 @@ fn summarize(session: &Session, folder: &Path, recoverable: bool) -> SessionSumm
         sources: session.sources.iter().map(|s| s.id).collect(),
         preview: preview(session),
         activity: activity(session, folder),
+        project: session.project.clone(),
     }
 }
 
@@ -187,7 +191,8 @@ pub fn save_outputs(
     app_version: &str,
 ) -> std::io::Result<PathBuf> {
     let mut written = read_snapshot(folder).map(|s| s.written).unwrap_or_default();
-    let doc = markdown::document(session, opts, &MarkdownMeta { app_version });
+    let project = super::projects::name_for(folder, session);
+    let doc = markdown::document(session, opts, &MarkdownMeta { app_version, project: project.as_deref() });
     let path = markdown::choose_output_path(folder, markdown::TRANSCRIPT_FILE, &written);
     write_atomic(&path, doc.as_bytes())?;
     let name = path.file_name().unwrap().to_string_lossy().into_owned();

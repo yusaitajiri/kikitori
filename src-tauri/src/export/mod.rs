@@ -218,6 +218,7 @@ pub(crate) mod test_support {
             gpu: true,
             items,
             unprocessed_ms: 0,
+            project: None,
         }
     }
 

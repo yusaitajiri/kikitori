@@ -140,6 +140,11 @@ found a reason to deviate.
 - **`session.json`** also stores the SHA-256 of files Kikitori wrote (`written`), which is how
   an edited `transcript.md` is detected and never overwritten.
 - **Rename** changes the title only; the folder keeps its original name.
+- **Projects live beside the sessions** (FR-64): `projects.json` in the output root holds each
+  project's ID, name and colour, and a session logs only the ID (`project_set`), so the list
+  moves with the folders and a rename shows everywhere at once. Deleting a project leaves its
+  sessions' IDs in place, naming nothing, so they read as in no project and no session folder is
+  rewritten. The Markdown front matter looks the name up beside the folder.
 - **A cut is a marker** (`cut`, FR-06), not a new session: the part shares the session's
   sound, line and folder, and a cut needs no new event in the log. It works while paused, so
   a break can end a part. Markdown heads the part with `## HH:MM:SS`, the PDF with the time
@@ -301,6 +306,16 @@ found a reason to deviate.
 - **Settings is a list** of its sections, each showing what it is set to now; a section opens with
   a back arrow. A pill tab per section would overflow the 420 px window with no sign that the
   tabs scroll.
+- **Projects are coloured squares** (FR-64), the one place colours beyond white, ink and red
+  appear, so they stay small: a 10 px rounded square before a title, never a fill, a chip or a
+  tinted row. Squares, because the dot is the app's only circle. Seven muted colours, light and
+  dark shades, none of them red (red is the voice you hear); a new project gets one no other
+  project uses. A session joins a project from the swatch beside the recording's title, the line
+  under a finished session's title, History's row menu (a submenu) or 選択 (a button beside
+  削除), each a native menu ending in 「新しいプロジェクト…」. History filters by project with a
+  menu button beside the search, shown only once a project exists; 設定 › プロジェクト lists
+  them to rename, recolour and delete. A new recording starts in no project: one tap on the
+  swatch puts it in one, and a default that carried over would file recordings by surprise.
 - **History is grouped by day** (今日 and 昨日 with the date, then dates) and searchable by title
   and opening words (`SessionSummary.preview`), each row with its title, time, line, opening
   words and length. A recording shorter than 10 s or with no transcript (most likely a test or

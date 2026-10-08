@@ -75,6 +75,11 @@ pub enum LogEvent {
     TitleChanged {
         title: String,
     },
+    /// The session joined a project, or left it (`None`) (FR-64).
+    ProjectSet {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        project: Option<String>,
+    },
     /// The detected language once `auto` locks it (section 8).
     LanguageDetected {
         language: String,
@@ -242,6 +247,7 @@ pub fn replay_lines(lines: &[String]) -> Option<Replay> {
                     gpu,
                     items: Vec::new(),
                     unprocessed_ms: 0,
+                    project: None,
                 });
             }
             event => {
@@ -332,6 +338,7 @@ pub fn apply(s: &mut Session, event: LogEvent) {
             }
         }
         LogEvent::TitleChanged { title } => s.title = title,
+        LogEvent::ProjectSet { project } => s.project = project,
         // The session keeps the configured language (`auto`); the detected one is only logged.
         LogEvent::LanguageDetected { .. } => {}
         LogEvent::SessionStopped { ended_at, duration_ms, unprocessed_ms, .. } => {

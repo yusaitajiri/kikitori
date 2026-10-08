@@ -377,6 +377,7 @@ pub fn start(app: &AppHandle, st: &AppState, config: SourceConfig, title: Option
         gpu,
         items: Vec::new(),
         unprocessed_ms: 0,
+        project: None,
     };
     let ids = Arc::new(SessionIds::default());
     let store = Arc::new(SessionStore::new(&folder, log, session, ids, events_of(app), settings.echo_guard));

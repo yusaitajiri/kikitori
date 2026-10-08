@@ -55,6 +55,7 @@ Before you record anyone, let them know.
 | Mark something important | The **star** button while recording (it marks the line being said). Each line's star adds or removes the mark too; exports start such lines with ★ |
 | Use the transcript | **Copy**, or **Export** (Markdown as a folder or a ZIP, PDF, Typst). The ⋯ menu has Copy as Markdown and Copy for AI agents |
 | See past recordings | **History** in the title bar. You can also fix or delete lines there |
+| Group recordings into projects | Pick a project from the square beside a recording's title, a finished recording's header, or History's ⋯ and **Select**. History filters by project; **Settings → Projects** renames and recolours them |
 
 - Recordings are saved automatically in `Documents\Kikitori`, one folder per recording named by date and title (`transcript.md` and images).
 - Exports and copies are in Japanese whatever the app's language: lines are labelled 相手 (Others) and 自分 (Me).

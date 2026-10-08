@@ -284,6 +284,7 @@ mod tests {
             gpu: false,
             items: vec![],
             unprocessed_ms: 0,
+            project: None,
         };
         let log = SessionLog::create(dir).unwrap();
         let rec = Arc::new(Recorded::default());

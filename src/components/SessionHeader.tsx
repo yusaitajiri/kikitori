@@ -6,6 +6,7 @@ import { commands } from "../ipc/commands";
 import { openFolder, reportError } from "../lib/actions";
 import { dayOf, dayText, durationParts, timeOf } from "../lib/format";
 import { useTranscriptStore } from "../store/transcript";
+import { ProjectButton } from "./Projects";
 import { inputClass } from "./ui";
 
 /** The last folders of a path, the way Explorer's address bar reads: `Kikitori › 2026-10-03_1513_Zoom`. */
@@ -27,6 +28,7 @@ export function SessionHeader() {
   const modelId = store((s) => s.modelId);
   const gpu = store((s) => s.gpu);
   const items = store((s) => s.items);
+  const project = store((s) => s.project);
   const model = useModelName(modelId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -87,7 +89,10 @@ export function SessionHeader() {
           <Pencil size={14} className="shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
         </button>
       )}
-      {when && <div className="mt-0.5 text-[12px] text-muted">{when}</div>}
+      <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2.5 text-[12px] text-muted">
+        {sessionId && <ProjectButton sessionId={sessionId} project={project} />}
+        {when && <span>{when}</span>}
+      </div>
       <div className="mt-2.5 flex flex-wrap items-baseline gap-x-[18px] gap-y-1 text-[12px] text-muted">
         {durationMs !== undefined && (
           <span>

@@ -12,6 +12,8 @@ import { useSettings } from "../store/settings";
 import { useSource } from "../store/source";
 import { type SettingsTab, useUi } from "../store/ui";
 import { ModelManager } from "./ModelManager";
+import { ProjectsSettings } from "../components/Projects";
+import { useProjects } from "../store/projects";
 
 const TABS: { id: Exclude<SettingsTab, "index">; key: string }[] = [
   { id: "general", key: "tabGeneral" },
@@ -21,6 +23,7 @@ const TABS: { id: Exclude<SettingsTab, "index">; key: string }[] = [
   { id: "screenshots", key: "tabScreenshots" },
   { id: "hotkeys", key: "tabHotkeys" },
   { id: "output", key: "tabOutput" },
+  { id: "projects", key: "tabProjects" },
 ];
 
 function useSave() {
@@ -307,6 +310,10 @@ function SettingsIndex({ s }: { s: SettingsT }) {
   const devices = useSource((st) => st.devices);
   const model = useModelName(s.modelId);
   const hotkeysTaken = Object.keys(info?.hotkeyErrors ?? {}).length > 0;
+  const projects = useProjects((st) => st.projects);
+  useEffect(() => {
+    void useProjects.getState().load().catch(() => {});
+  }, []);
   const summary: Record<(typeof TABS)[number]["id"], string> = {
     general: s.locale === "ja" ? "日本語" : "English",
     audio: [devices.find((d) => d.id === s.source.micDeviceId)?.name ?? t("defaultDevice"), s.echoGuard ? t("echoGuard") : null].filter(Boolean).join(" · "),
@@ -315,6 +322,7 @@ function SettingsIndex({ s }: { s: SettingsT }) {
     screenshots: t(targetKey[s.screenshot.target]),
     hotkeys: hotkeysTaken ? t("hotkeyTaken") : [s.hotkeys.toggle, s.hotkeys.screenshot, s.hotkeys.mark, s.hotkeys.cut].filter(Boolean).join(" · ") || t("hotkeyOff"),
     output: shortPath(s.output.root),
+    projects: projects.length ? projects.map((p) => p.name).join(" · ") : t("projectsNone"),
   };
   return (
     <div className="flex h-full flex-col">
@@ -368,6 +376,7 @@ export function Settings() {
             {settingsTab === "screenshots" && <Screenshots s={s} />}
             {settingsTab === "hotkeys" && <Hotkeys s={s} />}
             {settingsTab === "output" && <Output s={s} />}
+            {settingsTab === "projects" && <ProjectsSettings />}
           </div>
         )}
       </div>

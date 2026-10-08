@@ -21,6 +21,7 @@ use crate::models::{benchmark, manager};
 use crate::recorder::{self, Phase, ShotResponse, SourceConfig, StartResponse};
 use crate::session::log::{LogEvent, SessionLog};
 use crate::session::model::{Segment, Session, TimelineItem};
+use crate::session::projects::{self, Project};
 use crate::session::recovery::{self, SessionSummary};
 use crate::settings::{Layout, Locale, Settings};
 use crate::state::AppState;
@@ -560,6 +561,41 @@ pub async fn list_sessions(app: AppHandle) -> AppResult<Vec<SessionSummary>> {
     blocking(app, |_, st| {
         let active = st.recorder.lock().session_id();
         Ok(recovery::list(&root(st)).into_iter().filter(|s| Some(&s.id) != active.as_ref()).collect())
+    })
+    .await
+}
+
+/// The projects in the output root (FR-64).
+#[tauri::command]
+pub async fn list_projects(app: AppHandle) -> AppResult<Vec<Project>> {
+    blocking(app, |_, st| Ok(projects::load(&root(st)))).await
+}
+
+#[tauri::command]
+pub async fn create_project(app: AppHandle, name: String, color: String) -> AppResult<Project> {
+    blocking(app, move |_, st| Ok(projects::create(&root(st), &name, &color)?)).await
+}
+
+/// Renames or recolours a project; returns the whole list.
+#[tauri::command]
+pub async fn update_project(app: AppHandle, project: Project) -> AppResult<Vec<Project>> {
+    blocking(app, move |_, st| Ok(projects::update(&root(st), &project)?)).await
+}
+
+/// Deletes a project; its sessions stay, in no project.
+#[tauri::command]
+pub async fn delete_project(app: AppHandle, id: String) -> AppResult<Vec<Project>> {
+    blocking(app, move |_, st| Ok(projects::delete(&root(st), &id)?)).await
+}
+
+/// Puts sessions in a project, or (`None`) in none; the one being recorded too.
+#[tauri::command]
+pub async fn set_project(app: AppHandle, session_ids: Vec<String>, project: Option<String>) -> AppResult<()> {
+    blocking(app, move |app, st| {
+        for id in &session_ids {
+            edit(app, st, id, LogEvent::ProjectSet { project: project.clone() })?;
+        }
+        Ok(())
     })
     .await
 }

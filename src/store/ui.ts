@@ -3,7 +3,7 @@ import type { Notice } from "../ipc/types";
 
 export type View = "main" | "settings" | "history" | "models" | "session";
 /** A section of 設定, or `index`: the list of sections. */
-export type SettingsTab = "index" | "general" | "audio" | "transcription" | "models" | "screenshots" | "hotkeys" | "output";
+export type SettingsTab = "index" | "general" | "audio" | "transcription" | "models" | "screenshots" | "hotkeys" | "output" | "projects";
 
 export type Toast = { id: number; text: string; level: "info" | "warn" | "error" };
 export type Banner = Notice & { id: number };
@@ -20,6 +20,8 @@ type UiStore = {
   confirmQuit: boolean;
   /** The source picker over the recording view, to switch what is recorded (FR-17). */
   sourcePanel: boolean;
+  /** The new-project dialog, with the sessions to put in the project once made (FR-64). */
+  newProject?: { sessionIds: string[]; done?: (id: string) => void; n: number };
   go: (view: View, opts?: { tab?: SettingsTab; sessionId?: string }) => void;
   pushBanner: (n: Notice) => void;
   dismissBanner: (id: number) => void;
@@ -28,6 +30,7 @@ type UiStore = {
   setConfirmQuit: (v: boolean) => void;
   setExportFor: (id?: string) => void;
   setSourcePanel: (open: boolean) => void;
+  askNewProject: (sessionIds?: string[], done?: (id: string) => void) => void;
 };
 
 let nextId = 1;
@@ -62,4 +65,5 @@ export const useUi = create<UiStore>((set) => ({
   setConfirmQuit: (confirmQuit) => set({ confirmQuit }),
   setExportFor: (exportFor) => set({ exportFor }),
   setSourcePanel: (sourcePanel) => set({ sourcePanel }),
+  askNewProject: (sessionIds, done) => set({ newProject: sessionIds ? { sessionIds, done, n: nextId++ } : undefined }),
 }));

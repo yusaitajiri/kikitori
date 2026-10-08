@@ -43,6 +43,14 @@
   --kk-shadow: 0 0% 0%;
   --kk-shadow-strength: 1;
   --kk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Project colours (FR-64): small squares only, muted, and never red. */
+  --kk-p-slate: #7a7a84;
+  --kk-p-blue: #3d6fd1;
+  --kk-p-teal: #17867f;
+  --kk-p-green: #4a8a3c;
+  --kk-p-amber: #b47a1c;
+  --kk-p-violet: #7b5bd0;
+  --kk-p-brown: #8d6748;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -79,6 +87,13 @@
     --kk-meter-bg: #2c2c31;
     --kk-shadow: 0 0% 0%;
     --kk-shadow-strength: 3;
+    --kk-p-slate: #9a9aa3;
+    --kk-p-blue: #6d9bff;
+    --kk-p-teal: #3fbfb5;
+    --kk-p-green: #73bf62;
+    --kk-p-amber: #e0a845;
+    --kk-p-violet: #a68cff;
+    --kk-p-brown: #b78e6b;
   }
 }
 

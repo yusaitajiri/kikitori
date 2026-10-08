@@ -184,6 +184,7 @@ fn stream(
         gpu: false,
         items: vec![],
         unprocessed_ms: 0,
+        project: None,
     };
     let log = SessionLog::create(dir.path()).unwrap();
     log.append(&LogEvent::SessionStarted {

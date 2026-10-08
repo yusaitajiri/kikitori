@@ -12,6 +12,8 @@ pub const TRANSCRIPT_FILE: &str = "transcript.md";
 
 pub struct MarkdownMeta<'a> {
     pub app_version: &'a str,
+    /// The session's project's name (FR-64), for the front matter.
+    pub project: Option<&'a str>,
 }
 
 /// Full document with front matter.
@@ -40,8 +42,9 @@ pub fn document_linking(
 pub fn front_matter(session: &Session, meta: &MarkdownMeta) -> String {
     let start = session_start(session);
     let sources: Vec<String> = source_description(session).iter().map(|s| yaml_flow_item(s)).collect();
+    let project = meta.project.map(|p| format!("project: {}\n", yaml_scalar(p))).unwrap_or_default();
     format!(
-        "---\ntitle: {}\ndate: {}\nduration: {}\nsources: [{}]\nmodel: {}\napp: {}\n---\n",
+        "---\ntitle: {}\n{project}date: {}\nduration: {}\nsources: [{}]\nmodel: {}\napp: {}\n---\n",
         yaml_scalar(&session.title),
         start.format("%Y-%m-%d %H:%M"),
         hms(session.duration_ms),
@@ -200,7 +203,7 @@ mod tests {
     use crate::export::test_support::*;
     use crate::session::model::{Marker, SourceId, TimelineItem, tests::seg};
 
-    const META: MarkdownMeta = MarkdownMeta { app_version: "0.1.0" };
+    const META: MarkdownMeta = MarkdownMeta { app_version: "0.1.0", project: None };
 
     #[test]
     fn document_matches_spec_example() {
@@ -247,6 +250,14 @@ mod tests {
             ),
             "{md}"
         );
+    }
+
+    #[test]
+    fn front_matter_names_the_project() {
+        let meta = MarkdownMeta { app_version: "0.1.0", project: Some("ゼミ: 第3回") };
+        let fm = front_matter(&meeting(), &meta);
+        assert!(fm.starts_with("---\ntitle: Zoom\nproject: \"ゼミ: 第3回\"\ndate: "), "{fm}");
+        assert!(!front_matter(&meeting(), &META).contains("project:"));
     }
 
     #[test]

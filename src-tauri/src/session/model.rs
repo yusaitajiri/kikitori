@@ -145,6 +145,9 @@ pub struct Session {
     /// Audio that was never transcribed because the user cancelled finishing.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub unprocessed_ms: u64,
+    /// The ID of the project the session belongs to (FR-64), from `projects.json` in the output root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
 }
 
 fn is_zero(v: &u64) -> bool {

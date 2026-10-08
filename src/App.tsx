@@ -5,6 +5,7 @@ import { Transcript, TranscriptTail } from "./components/LiveTranscript";
 import { Banners, Toasts } from "./components/Notices";
 import { Deck } from "./components/Deck";
 import { LiveHeader } from "./components/LiveHeader";
+import { NewProjectDialog } from "./components/Projects";
 import { SourcePanel } from "./components/SourcePicker";
 import { SessionHeader } from "./components/SessionHeader";
 import { StartScreen } from "./components/StartScreen";
@@ -225,6 +226,7 @@ export default function App() {
       <RecoveryDialog />
       <ConfirmQuitDialog />
       {exportFor && <ExportDialog sessionId={exportFor} onClose={() => setExportFor(undefined)} />}
+      <NewProjectDialog />
     </div>
   );
 }

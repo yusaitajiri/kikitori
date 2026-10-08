@@ -29,7 +29,9 @@ pub fn write(
             markdown::TRANSCRIPT_FILE,
             SimpleFileOptions::default().compression_method(CompressionMethod::Deflated),
         )?;
-        zip.write_all(markdown::document(session, opts, &MarkdownMeta { app_version }).as_bytes())?;
+        let project = crate::session::projects::name_for(folder, session);
+        let meta = MarkdownMeta { app_version, project: project.as_deref() };
+        zip.write_all(markdown::document(session, opts, &meta).as_bytes())?;
         // Screenshots are PNG, already compressed.
         let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
         let mut shots = 0;
