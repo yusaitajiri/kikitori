@@ -101,7 +101,7 @@ items (section 19).
 | FR-22 | Transcription | Grey provisional text for the utterance in progress (GPU only). |
 | FR-23 | Transcription | Filter hallucinated and repeated phrases (section 8). |
 | FR-24 | Transcription | GPU through Vulkan, with automatic CPU fallback. |
-| FR-25 | Transcription | When transcription falls behind, show the lag (「遅れ 12秒」). Never drop audio. |
+| FR-25 | Transcription | When transcription falls behind, show the lag (「遅れ 12秒」), and a minute behind offer to transcribe after Stop. Never drop audio. |
 | FR-26 | Transcription | A custom word list (up to 50 terms) is passed to Whisper as its prompt. |
 | FR-30 | Screenshots | A button, and a global hotkey once set, captures the recorded app's window (else the screen under the cursor). Alternatives: the cursor's screen, all screens. |
 | FR-31 | Screenshots | The image is placed in the timeline at capture time, shown in the live view and confirmed by a toast. |
@@ -298,11 +298,18 @@ with the same utterance ID replaces it.
 | --- | --- |
 | Under 5 s | Normal |
 | 5 s or more | No partials; waiting jobs merge |
-| Over 30 s | 「遅れ n秒」 is emphasized |
+| 15 s or more | 「遅れ n秒」 is bold |
+| 30 s or more | 「遅れ n秒」 turns yellow |
+| 60 s or more | Banner, once: 「停止後にまとめる」 |
 | Over 120 s | Banner: 「軽量モデルなら追いつきます」 |
 
-Audio is never dropped. On Stop the queue drains with progress; 処理を中止 ends the transcript with
-「（以降、未処理の音声 N 秒）」.
+「停止後にまとめる」 stops running Whisper for the rest of the recording: speech is still cut into
+utterances and queued per source (相手 and 自分 stay apart), but nothing runs until Stop, so the PC
+keeps up with capture alone. The line reads 「停止後に文字起こし · 今すぐ再開」, which takes it up
+again. The lag banners stop while it waits.
+
+Audio is never dropped. On Stop the queue drains with progress, a bar by queued audio once it has
+taken 5 s; 処理を中止 ends the transcript with 「（以降、未処理の音声 N 秒）」.
 
 **GPU.** Before anything touches Vulkan, implicit layers are disabled
 (`VK_LOADER_LAYERS_DISABLE`; overlays such as OBS or Steam crash it), unless

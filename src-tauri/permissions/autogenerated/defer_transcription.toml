@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-defer-transcription"
+description = "Enables the defer_transcription command without any pre-configured scope."
+commands.allow = ["defer_transcription"]
+
+[[permission]]
+identifier = "deny-defer-transcription"
+description = "Denies the defer_transcription command without any pre-configured scope."
+commands.deny = ["defer_transcription"]

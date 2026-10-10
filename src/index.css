@@ -40,6 +40,9 @@
   --kk-me: #121214;
   --kk-partial: #66666d;
   --kk-meter-bg: #e3e3e6;
+  /* Transcription far behind (FR-25): yellow, since red is the voice you hear. Dark enough on
+     white for small bold text (4.8:1). */
+  --kk-lag: #946b00;
   --kk-shadow: 0 0% 0%;
   --kk-shadow-strength: 1;
   --kk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -85,6 +88,7 @@
     --kk-me: #ededef;
     --kk-partial: #a2a2a9;
     --kk-meter-bg: #2c2c31;
+    --kk-lag: #f5c400;
     --kk-shadow: 0 0% 0%;
     --kk-shadow-strength: 3;
     --kk-p-slate: #9a9aa3;
@@ -129,6 +133,7 @@
   --color-me: var(--kk-me);
   --color-partial: var(--kk-partial);
   --color-meter: var(--kk-meter-bg);
+  --color-lag: var(--kk-lag);
   --font-sans: "Yu Gothic UI", "Segoe UI Variable Text", "Segoe UI", "Meiryo", sans-serif;
   --font-num: "Segoe UI Variable Display", "Segoe UI", "Yu Gothic UI", sans-serif;
 
@@ -488,6 +493,20 @@
 }
 .kk-deck-compact .kk-timer {
   font-size: 22px;
+}
+/* 遅れ n秒 / 一時停止中: written on the line's oldest end, on paper, as a marker's label sits on
+   its rule; the row below has no room for it. The pen's end stays clear. */
+.kk-line-note {
+  position: absolute;
+  left: 8px;
+  top: calc(var(--kk-b) - 9px);
+  max-width: 60%;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--kk-bg);
+  line-height: 18px;
+  pointer-events: none;
+  animation: kk-fade-in 200ms ease-out both;
 }
 .kk-link {
   border-radius: 5px;

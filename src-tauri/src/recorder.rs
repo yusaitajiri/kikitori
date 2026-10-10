@@ -35,6 +35,8 @@ use crate::audio::win::capture::{CaptureTarget, WasapiSource};
 
 pub const ME: &str = "自分";
 pub const OTHERS: &str = "相手";
+/// This far behind, a banner offers to leave transcription for after Stop (FR-25).
+const DEFER_OFFER_LAG_MS: u64 = 60_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -102,6 +104,9 @@ pub struct Active {
     /// Time spent paused before the current pause; the timer leaves it out.
     paused_ms: u64,
     lag_banner_shown: bool,
+    /// Transcription waits for Stop (FR-25); offered once, a minute behind.
+    deferred: bool,
+    defer_offered: bool,
     pub app_root_pid: Option<u32>,
     pub app_name: Option<String>,
     /// A window picked from the camera's menu: screenshots take it until the recording ends (FR-34).
@@ -166,6 +171,7 @@ pub fn state_payload(st: &AppState) -> StatePayload {
             sources: Some(a.sources.clone()),
             folder: Some(a.store.folder.to_string_lossy().into_owned()),
             shot_window: a.shot_window.clone(),
+            deferred: a.deferred,
         },
         Phase::Finishing { session_id, folder, sources, .. } => StatePayload {
             state: UiState::Finishing,
@@ -174,11 +180,20 @@ pub fn state_payload(st: &AppState) -> StatePayload {
             sources: Some(sources.clone()),
             folder: Some(folder.to_string_lossy().into_owned()),
             shot_window: None,
+            deferred: false,
         },
         Phase::Idle => {
             drop(rec);
             let state = if st.any_model_installed() { UiState::Ready } else { UiState::NeedsModel };
-            StatePayload { state, session_id: None, elapsed_ms: None, sources: None, folder: None, shot_window: None }
+            StatePayload {
+                state,
+                session_id: None,
+                elapsed_ms: None,
+                sources: None,
+                folder: None,
+                shot_window: None,
+                deferred: false,
+            }
         }
     }
 }
@@ -473,6 +488,8 @@ fn begin(app: &AppHandle, st: &AppState, config: SourceConfig, how: Begin) -> Ap
         paused_at: None,
         paused_ms: 0,
         lag_banner_shown: false,
+        deferred: false,
+        defer_offered: false,
         app_root_pid,
         app_name: (config.mode == SourceMode::App).then(|| app_name.clone()),
         shot_window: None,
@@ -612,14 +629,22 @@ fn finish(app: &AppHandle, st: &AppState, mut active: Box<Active>, stop_ms: u64,
     }
     let id = active.store.id.clone();
     st.worker.drop_partials(&id);
+    // What waited for Stop runs now (FR-25).
+    st.worker.set_deferred(&id, false);
     let total = st.worker.pending_finals(&id);
+    let total_ms = st.worker.pending_ms(&id);
     let mut dropped_ms = 0;
     loop {
         let pending = st.worker.pending_finals(&id);
         events::emit(
             app,
             events::FINISHING_PROGRESS,
-            &events::ProgressPayload { done: total.saturating_sub(pending), total },
+            &events::ProgressPayload {
+                done: total.saturating_sub(pending),
+                total,
+                done_ms: total_ms.saturating_sub(st.worker.pending_ms(&id)),
+                total_ms,
+            },
         );
         if pending == 0 {
             break;
@@ -799,6 +824,19 @@ pub fn set_shot_window(app: &AppHandle, st: &AppState, window: Option<screenshot
     Ok(())
 }
 
+/// Leaves transcription for after Stop, or (`false`) takes it up again now (FR-25). The speech
+/// waits in the queue, so nothing is lost either way.
+pub fn set_deferred(app: &AppHandle, st: &AppState, deferred: bool) -> AppResult<()> {
+    {
+        let mut rec = st.recorder.lock();
+        let Phase::Recording(active) = &mut *rec else { return Err(AppError::internal("not recording")) };
+        active.deferred = deferred;
+        st.worker.set_deferred(&active.store.id, deferred);
+    }
+    emit_state(app, st);
+    Ok(())
+}
+
 /// Cut (FR-06): a new part of the session starts now. Works while paused too, so a break can
 /// end one part.
 pub fn add_cut(st: &AppState) -> AppResult<()> {
@@ -921,6 +959,7 @@ pub fn tick(app: &AppHandle, st: &AppState, n: u64) {
     let mut statuses = Vec::new();
     let mut stop_for_disk = false;
     let mut lag_banner = false;
+    let mut defer_banner = false;
     {
         let mut rec = st.recorder.lock();
         let Phase::Recording(active) = &mut *rec else { return };
@@ -957,9 +996,16 @@ pub fn tick(app: &AppHandle, st: &AppState, n: u64) {
                 _ => "loading",
             };
             events::emit(app, events::ASR_LAG, &events::LagPayload { lag_ms: lag, queued: st.worker.queued(), device });
-            if lag > 120_000 && !active.lag_banner_shown {
-                active.lag_banner_shown = true;
-                lag_banner = true;
+            // Lag means nothing while transcription waits for Stop.
+            if !active.deferred {
+                if lag >= DEFER_OFFER_LAG_MS && !active.defer_offered {
+                    active.defer_offered = true;
+                    defer_banner = true;
+                }
+                if lag > 120_000 && !active.lag_banner_shown {
+                    active.lag_banner_shown = true;
+                    lag_banner = true;
+                }
             }
             if let Err(e) = active.store.log.sync_if_due() {
                 tracing::warn!("log sync failed: {e}");
@@ -974,6 +1020,12 @@ pub fn tick(app: &AppHandle, st: &AppState, n: u64) {
     if n.is_multiple_of(10) {
         let payload = state_payload(st);
         events::emit(app, events::RECORDING_STATE, &payload);
+    }
+    if defer_banner {
+        events::notice(
+            app,
+            Notice::new(NoticeLevel::Warn, "lag_defer", "lagDefer").action("deferTranscription", "defer_transcription"),
+        );
     }
     if lag_banner {
         events::notice(

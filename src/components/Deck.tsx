@@ -17,6 +17,7 @@ import { useSource } from "../store/source";
 import { useTranscriptStore } from "../store/transcript";
 import { useUi } from "../store/ui";
 import { ModelNote } from "./ModelNote";
+import { Progress } from "./ui";
 
 type DeckState = "start" | "recording" | "paused" | "finishing" | "review";
 
@@ -722,68 +723,96 @@ function LiveRow({ compact, paused }: { compact: boolean; paused: boolean }) {
   const elapsed = useElapsed();
   const lag = useRecording((s) => (s.lag ? Math.round(s.lag.lagMs / 1000) : 0));
   const shotWindow = useRecording((s) => s.shotWindow);
-  const note = paused ? t("paused") : lag >= 2 ? t("lag", { n: lag }) : "";
+  const deferred = useRecording((s) => s.deferred);
+  // Waiting for Stop, the lag only grows and says nothing (FR-25).
+  const note = paused ? t("paused") : deferred ? t("deferredNote") : lag >= 2 ? t("lag", { n: lag }) : "";
+  // Small and grey while it may catch up, bold from 15 s, yellow from 30 s (FR-25).
+  const noteClass = paused || deferred || lag < 15 ? "font-semibold text-muted" : lag < 30 ? "font-bold text-fg" : "font-bold text-lag";
   const ctl = "kk-ctl grid shrink-0 place-items-center rounded-[11px] border border-line bg-surface text-fg transition-colors duration-150 hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40";
   return (
-    <div className="kk-row flex items-center justify-between gap-3 animate-fade-in [animation-delay:300ms]">
-      <span className="flex min-w-0 items-baseline gap-2.5">
-        <span className={`num kk-timer ${paused ? "text-muted" : ""}`} aria-label={t("elapsed")}>
-          {timerText(elapsed)}
+    <>
+      {/* The row has no room left beside the timer, so the note sits on the line. */}
+      {note && (
+        <span className={`kk-line-note truncate text-[11.5px] ${noteClass}`} aria-live="polite">
+          {note}
+          {deferred && !paused && (
+            <>
+              {" · "}
+              <button type="button" onClick={() => void commands.deferTranscription(false).catch(reportError)} className="pointer-events-auto font-bold text-fg underline-offset-2 hover:underline">
+                {t("resumeTranscription")}
+              </button>
+            </>
+          )}
         </span>
-        {note && (
-          <span className={`truncate text-[11.5px] ${lag > 30 && !paused ? "font-bold text-fg" : "font-semibold text-muted"}`} aria-live="polite">
-            {note}
+      )}
+      <div className="kk-row flex items-center justify-between gap-3 animate-fade-in [animation-delay:300ms]">
+        <span className="flex min-w-0 items-baseline gap-2.5">
+          <span className={`num kk-timer ${paused ? "text-muted" : ""}`} aria-label={t("elapsed")}>
+            {timerText(elapsed)}
           </span>
-        )}
-      </span>
-      <span className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={pauseOrResume}
-          aria-pressed={paused}
-          aria-label={paused ? t("resume") : t("pause")}
-          title={paused ? t("resume") : t("pause")}
-          className={`${ctl} ${paused ? "!border-fg !bg-fg !text-bg" : ""}`}
-        >
-          {paused ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
-        </button>
-        <button
-          type="button"
-          onClick={toggleRecording}
-          aria-label={t("stop")}
-          className={`inline-flex shrink-0 items-center gap-2 rounded-full bg-rec-strong font-bold text-rec-fg transition-colors duration-150 hover:bg-rec-hover ${compact ? "h-9 px-4 text-[12.5px]" : "h-[42px] px-[18px] text-[13px]"}`}
-        >
-          <Square size={10} fill="currentColor" />
-          {t("stop")}
-        </button>
-        <span className="flex shrink-0">
-          <button type="button" onClick={takeScreenshot} disabled={paused} aria-label={t("screenshot")} title={shotWindow ? `${t("screenshot")}: ${shotWindow.title}` : t("screenshot")} className={`${ctl} kk-split-l`}>
-            <Camera size={17} />
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={pauseOrResume}
+            aria-pressed={paused}
+            aria-label={paused ? t("resume") : t("pause")}
+            title={paused ? t("resume") : t("pause")}
+            className={`${ctl} ${paused ? "!border-fg !bg-fg !text-bg" : ""}`}
+          >
+            {paused ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
           </button>
-          <button type="button" onClick={() => shotMenu(t)} aria-haspopup="menu" aria-label={t("shotTarget")} title={t("shotTarget")} className={`${ctl} kk-split-r`}>
-            <ChevronDown size={12} />
+          <button
+            type="button"
+            onClick={toggleRecording}
+            aria-label={t("stop")}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full bg-rec-strong font-bold text-rec-fg transition-colors duration-150 hover:bg-rec-hover ${compact ? "h-9 px-4 text-[12.5px]" : "h-[42px] px-[18px] text-[13px]"}`}
+          >
+            <Square size={10} fill="currentColor" />
+            {t("stop")}
+          </button>
+          <span className="flex shrink-0">
+            <button type="button" onClick={takeScreenshot} disabled={paused} aria-label={t("screenshot")} title={shotWindow ? `${t("screenshot")}: ${shotWindow.title}` : t("screenshot")} className={`${ctl} kk-split-l`}>
+              <Camera size={17} />
+            </button>
+            <button type="button" onClick={() => shotMenu(t)} aria-haspopup="menu" aria-label={t("shotTarget")} title={t("shotTarget")} className={`${ctl} kk-split-r`}>
+              <ChevronDown size={12} />
+            </button>
+          </span>
+          <button type="button" onClick={markCurrentLine} aria-label={t("markLine")} title={t("markLine")} className={ctl}>
+            <Star size={16} />
+          </button>
+          <button type="button" onClick={addCut} aria-label={t("cut")} title={t("cut")} className={ctl}>
+            <Scissors size={16} />
           </button>
         </span>
-        <button type="button" onClick={markCurrentLine} aria-label={t("markLine")} title={t("markLine")} className={ctl}>
-          <Star size={16} />
-        </button>
-        <button type="button" onClick={addCut} aria-label={t("cut")} title={t("cut")} className={ctl}>
-          <Scissors size={16} />
-        </button>
-      </span>
-    </div>
+      </div>
+    </>
   );
 }
+
+/** Finishing this long shows a progress bar; a short one is over before a bar would mean anything. */
+const FINISHING_BAR_MS = 5_000;
 
 function FinishingRow() {
   const { t } = useTranslation();
   const finishing = useRecording((s) => s.finishing);
   const left = finishing && finishing.total > 0 ? finishing.total - finishing.done : null;
+  const [long, setLong] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setLong(true), FINISHING_BAR_MS);
+    return () => clearTimeout(id);
+  }, []);
+  // By audio rather than by line: the lines left differ in length, merged ones most.
+  const bar = long && finishing && finishing.totalMs > 0;
   return (
     <div className="kk-row flex items-center justify-between gap-3 text-[12.5px] animate-fade-in" title={t("finishingDetail")}>
-      <span className="min-w-0 truncate">
-        <b className="font-semibold">{t("finishing")}</b>
-        {left !== null && <span className="text-muted"> · {t("finishingLeft", { n: left })}</span>}
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="min-w-0 truncate">
+          <b className="font-semibold">{t("finishing")}</b>
+          {left !== null && <span className="text-muted"> · {t("finishingLeft", { n: left })}</span>}
+        </span>
+        {bar && <Progress value={finishing.doneMs} max={finishing.totalMs} className="max-w-[260px] animate-fade-in" />}
       </span>
       <button type="button" onClick={() => commands.cancelFinishing()} className="kk-link shrink-0">
         {t("stopFinishing")}

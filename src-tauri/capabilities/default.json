@@ -24,6 +24,7 @@
     "allow-switch-source",
     "allow-take-screenshot",
     "allow-add-cut",
+    "allow-defer-transcription",
     "allow-list-windows",
     "allow-set-shot-window",
     "allow-mark-current-line",

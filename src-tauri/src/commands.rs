@@ -312,6 +312,12 @@ pub async fn set_shot_window(app: AppHandle, window: Option<crate::screenshot::W
     blocking(app, move |app, st| recorder::set_shot_window(app, st, window)).await
 }
 
+/// Leaves transcription for after Stop, or takes it up again (FR-25).
+#[tauri::command]
+pub async fn defer_transcription(app: AppHandle, deferred: bool) -> AppResult<()> {
+    blocking(app, move |app, st| recorder::set_deferred(app, st, deferred)).await
+}
+
 #[tauri::command]
 pub async fn add_cut(app: AppHandle) -> AppResult<()> {
     blocking(app, |_, st| recorder::add_cut(st)).await

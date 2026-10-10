@@ -100,6 +100,8 @@ export type StatePayload = {
   folder?: string;
   /** The window screenshots take, when one was picked for this recording. */
   shotWindow?: WindowInfo;
+  /** While recording: transcription waits for Stop (FR-25). */
+  deferred?: boolean;
 };
 
 export type AppInfo = {
@@ -248,7 +250,7 @@ export type RemovedPayload = { id: string; reason: "echo" | "user" };
 export type ScreenshotPayload = { id: string; tMs: number; thumbDataUrl: string; width: number; height: number; file: string };
 export type MarkerPayload = { kind: "marker"; id: string; tMs: number; type: MarkerType; detail?: string };
 export type LagPayload = { lagMs: number; queued: number; device: "gpu" | "cpu" | "loading" };
-export type ProgressPayload = { done: number; total: number };
+export type ProgressPayload = { done: number; total: number; doneMs: number; totalMs: number };
 export type DownloadPayload = {
   id: string;
   received: number;

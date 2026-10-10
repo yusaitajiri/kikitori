@@ -61,7 +61,7 @@ To change the app's language later: Settings → General → Language. If your m
 - Exports and copies are in Japanese whatever the app's language: lines are labelled 相手 (Others) and 自分 (Me).
 - Through speakers, your mic may pick up the other side's voice. Headphones work best (duplicate lines are removed automatically).
 - Start/Stop, Screenshot, the important mark and the cut can get keys that work from any app: Settings → Hotkeys (off at first).
-- On a PC without a usable GPU, Kikitori runs on the CPU. If it feels slow, choose **Lightweight** in Settings → Models.
+- On a PC without a usable GPU, Kikitori runs on the CPU. If it feels slow, choose **Lightweight** in Settings → Models. Once transcription is a minute behind, **After Stop** pauses it while you record, to keep the PC light, and catches up when you stop.
 
 ## Privacy
 

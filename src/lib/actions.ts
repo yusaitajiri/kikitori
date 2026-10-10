@@ -52,6 +52,9 @@ export async function runNoticeAction(command: string) {
       case "switch_to_system":
         await commands.switchToSystem();
         break;
+      case "defer_transcription":
+        await commands.deferTranscription(true);
+        break;
       case "open_models":
         ui.go("settings", { tab: "models" });
         break;

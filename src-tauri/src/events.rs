@@ -67,6 +67,9 @@ pub struct StatePayload {
     /// The window screenshots take, when one was picked for this recording (FR-34).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shot_window: Option<crate::screenshot::WindowInfo>,
+    /// While recording: transcription waits for Stop (FR-25).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub deferred: bool,
 }
 
 /// What is being recorded, for the UI to name in its own language ("Zoom + マイク").
@@ -122,6 +125,9 @@ pub struct LagPayload {
 pub struct ProgressPayload {
     pub done: usize,
     pub total: usize,
+    /// The same by audio, in ms: jobs differ in length, so this is what a progress bar shows.
+    pub done_ms: u64,
+    pub total_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -8,6 +8,8 @@ type RecordingStore = {
   folder?: string;
   /** The window screenshots take, when one was picked for this recording (FR-34). */
   shotWindow?: WindowInfo;
+  /** Transcription waits for Stop (FR-25). */
+  deferred: boolean;
   /** Elapsed time at `elapsedAt` (ms since epoch); the UI ticks locally between 1 Hz updates. */
   elapsedMs: number;
   elapsedAt: number;
@@ -26,6 +28,7 @@ export const useRecording = create<RecordingStore>((set) => ({
   state: "ready",
   elapsedMs: 0,
   elapsedAt: Date.now(),
+  deferred: false,
   lag: null,
   finishing: null,
   engine: null,
@@ -36,6 +39,7 @@ export const useRecording = create<RecordingStore>((set) => ({
       sources: p.sources ?? (p.state === "finishing" ? s.sources : undefined),
       folder: p.folder ?? s.folder,
       shotWindow: p.shotWindow,
+      deferred: !!p.deferred,
       elapsedMs: p.elapsedMs ?? (p.state === "recording" || p.state === "paused" || p.state === "finishing" ? s.elapsedMs : 0),
       elapsedAt: Date.now(),
       lag: p.state === "recording" || p.state === "paused" ? s.lag : null,

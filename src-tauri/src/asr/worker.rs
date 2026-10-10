@@ -2,8 +2,8 @@
 //! source, takes final jobs before partial ones (oldest first across sources), merges jobs
 //! under backlog, and hands post-processed segments to the session's sink.
 
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -227,6 +227,8 @@ struct Queue {
     finals: Vec<Job>,
     partials: HashMap<SourceId, Job>,
     in_flight: Option<InFlight>,
+    /// Sessions whose finals wait for the recording to stop (FR-25): queued, not run.
+    deferred: HashSet<String>,
     command: Option<Command>,
     /// Drop the Whisper states once the queue is empty (set when a recording ends).
     release_states: bool,
@@ -309,7 +311,9 @@ impl AsrWorker {
                 q.finals.push(job);
             }
             JobKind::Partial => {
-                q.partials.insert(job.source, job);
+                if !q.deferred.contains(&job.ctx.session_id) {
+                    q.partials.insert(job.source, job);
+                }
             }
         }
         update_partials_ok(&self.shared, &q);
@@ -364,6 +368,29 @@ impl AsrWorker {
         dropped
     }
 
+    /// Holds a session's finals in the queue until `false` (FR-25), so the recording runs light;
+    /// its partials go too, since nothing is shown until the finals run.
+    pub fn set_deferred(&self, session_id: &str, deferred: bool) {
+        let mut q = self.shared.queue.lock();
+        if deferred {
+            q.deferred.insert(session_id.to_string());
+            q.partials.retain(|_, j| j.ctx.session_id != session_id);
+        } else {
+            q.deferred.remove(session_id);
+        }
+        self.shared.cv.notify_all();
+    }
+
+    /// Audio of a session's finals still queued or running, in ms: how much finishing has left.
+    pub fn pending_ms(&self, session_id: &str) -> u64 {
+        let q = self.shared.queue.lock();
+        q.finals.iter().filter(|j| j.ctx.session_id == session_id).map(Job::duration_ms).sum::<u64>()
+            + q.in_flight
+                .as_ref()
+                .filter(|f| f.session_id == session_id && f.kind == JobKind::Final)
+                .map_or(0, |f| f.end_ms.saturating_sub(f.start_ms))
+    }
+
     /// Removes queued partials (e.g. when a session stops).
     pub fn drop_partials(&self, session_id: &str) {
         let mut q = self.shared.queue.lock();
@@ -407,10 +434,16 @@ fn next_work(q: &mut Queue) -> Option<Work> {
     if !q.engine_ready {
         return None;
     }
-    if !q.finals.is_empty() {
-        q.finals.sort_by_key(|j| (j.start_ms, j.source.as_str()));
-        let first = q.finals.remove(0);
-        let now_end = q.finals.iter().map(|j| j.end_ms()).max().unwrap_or(first.end_ms());
+    q.finals.sort_by_key(|j| (j.start_ms, j.source.as_str()));
+    if let Some(i) = q.finals.iter().position(|j| !q.deferred.contains(&j.ctx.session_id)) {
+        let first = q.finals.remove(i);
+        let now_end = q
+            .finals
+            .iter()
+            .filter(|j| j.ctx.session_id == first.ctx.session_id)
+            .map(|j| j.end_ms())
+            .max()
+            .unwrap_or(first.end_ms());
         let backlog = now_end.saturating_sub(first.end_ms()) >= BACKLOG_LAG_MS;
         let mut batch = vec![first];
         if backlog {
@@ -939,6 +972,18 @@ mod tests {
             Some(Work::Finals(batch)) => assert_eq!(batch.len(), 1),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn a_deferred_session_waits_in_the_queue_until_released() {
+        let c = ctx();
+        let mut q = Queue { engine_ready: true, engine_gpu: true, ..Default::default() };
+        q.deferred.insert(c.session_id.clone());
+        q.finals.push(job(&c, SourceId::App, "utt_1", 0, 2_000));
+        assert!(next_work(&mut q).is_none());
+        assert_eq!(q.finals.len(), 1);
+        q.deferred.clear();
+        assert!(matches!(next_work(&mut q), Some(Work::Finals(_))));
     }
 
     #[test]

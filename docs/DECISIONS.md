@@ -72,6 +72,11 @@ found a reason to deviate.
 - **GPU crash detection.** Before a GPU init the app writes `gpuInitInProgress` to `state.json`
   and clears it afterwards. If it is still set at launch, the init crashed the process, so the
   app records a GPU failure and uses the CPU.
+- **Transcribing after Stop** (FR-25). The queued utterances stay in memory, as every backlog
+  does: 16 kHz float audio, about 64 KB a second of speech per source, so an hour of non-stop talk
+  holds about 230 MB. Writing them to disk was left out until a recording needs it. Hiding the live
+  text a minute behind was considered and dropped: drawing it costs nothing next to Whisper, and
+  the lines that do arrive are still worth seeing.
 - **Backlog merging.** Inside the worker, "lag ≥ 5 s" is measured as the span between the oldest
   and newest waiting utterance of a session, which needs no clock and only matters when there is
   more than one job to merge.
@@ -241,8 +246,11 @@ found a reason to deviate.
   true red `#D8232A` (dark mode `#FF3B3F`, which keeps the hue on near-black and gives 相手's name
   5:1; `#FF5B5B` read salmon). **Red is the voice you hear**: 相手's line and name, the start dot
   and 停止. 自分 is ink. Alerts (banners, 要復元) are inverted, paper on ink, so red never means an
-  error. No glows, gradients, blur or pink layers; the only tint lies under the line while
-  recording, and a hint of it after.
+  error. 「遅れ n秒」 30 s or more behind (FR-25) is yellow (`#946B00`, dark mode `#F5C400`): in an
+  app made of red, a red warning would not stand out. It (and 一時停止中) is written on the line's
+  left end, on paper, since the row under the line has no room left beside the timer. No glows,
+  gradients, blur or pink layers; the only tint lies under the line while recording, and a hint of
+  it after.
 - **The line is real sound** (`components/Deck.tsx`, `lib/line.ts`, `store/line.ts`). While
   recording, the line across the window is drawn from the levels the backend sends ten times a
   second: 相手 rises above it in red and 自分 dips below it in ink (a single source rises above,

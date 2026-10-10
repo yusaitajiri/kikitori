@@ -136,6 +136,7 @@ pub fn run() {
             commands::switch_source,
             commands::take_screenshot,
             commands::add_cut,
+            commands::defer_transcription,
             commands::list_windows,
             commands::set_shot_window,
             commands::mark_current_line,

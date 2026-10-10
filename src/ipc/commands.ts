@@ -45,6 +45,7 @@ export const commands = {
   switchSource: (source: SourceConfig) => invoke<void>("switch_source", { source }),
   takeScreenshot: () => invoke<{ id: string; tMs: number }>("take_screenshot"),
   addCut: () => invoke<void>("add_cut"),
+  deferTranscription: (deferred: boolean) => invoke<void>("defer_transcription", { deferred }),
   listWindows: () => invoke<WindowInfo[]>("list_windows"),
   /** The window screenshots take for the rest of the recording; `null` goes back to the setting. */
   setShotWindow: (window: WindowInfo | null) => invoke<void>("set_shot_window", { window }),
