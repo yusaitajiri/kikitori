@@ -1,6 +1,6 @@
 [package]
 name = "kikitori"
-version = "0.2.0"
+version = "0.3.0"
 description = "Live transcription with local Whisper"
 authors = ["Yusai Tajiri"]
 license = "MIT"

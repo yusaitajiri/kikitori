@@ -4,6 +4,18 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- A minute behind, a banner offers to transcribe after Stop: Whisper stops while recording so a slow PC keeps up, and the speech is written, 相手 and 自分 still apart, when you stop. 今すぐ再開 on the line takes it up again.
+- Finishing that takes more than 5 s shows a progress bar.
+
+### Changed
+
+- 「遅れ n秒」 sits on the line, where it fits in both windows (the buttons added in 0.2.0 had squeezed it out), and turns bold from 15 s and yellow from 30 s.
+- 設定 › モデル lists the recommended models and the ones you have; the others open from ほかのモデル.
+
 ## [0.2.0] - 2026-10-08
 
 ### Added
