@@ -120,7 +120,7 @@ items (section 19).
 | FR-63 | Sessions | Rename a session; the default title is the source app's name. |
 | FR-64 | Sessions | Projects: named, coloured groups of sessions. A session joins one from its header (also while recording), History's row menu or a multi-selection; History filters by project; 設定 › プロジェクト renames, recolours and deletes them (deleting keeps the recordings). |
 | FR-70 | Models | The first-run wizard recommends a model and downloads it with resume and checksum check. |
-| FR-71 | Models | Model manager: download, import from a file, delete, switch; size and speed tier shown. |
+| FR-71 | Models | Model manager: download, import from a file, delete, switch; size and speed tier shown. The recommended models and the ones installed are listed; the rest open from ほかのモデル. |
 | FR-72 | Models | A 10-second benchmark rates how well the PC runs a model. |
 | FR-90 | System | Tray menu: 開始/停止, スクショ, ウィンドウを表示, 終了. |
 | FR-91 | System | Single instance: a second launch focuses the running window. |

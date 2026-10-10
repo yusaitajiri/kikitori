@@ -1,4 +1,4 @@
-import { Check, Download, Gauge, Loader2, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Download, Gauge, Loader2, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, IconButton, Progress } from "../components/ui";
@@ -13,6 +13,9 @@ import { useSettings } from "../store/settings";
 import { useUi } from "../store/ui";
 
 const tierKey = { comfortable: "tierComfortable", ok: "tierOk", heavy: "tierHeavy" } as const;
+
+/** The models the app recommends (section 12); the others wait behind ほかのモデル. */
+const MAIN_MODELS = ["turbo-q5", "small-q5"];
 
 export function ModelRow({ m, p, onChanged, compact }: { m: ModelEntry; p?: DownloadPayload; onChanged: () => void; compact?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -115,7 +118,13 @@ export function ModelManager({ standalone }: { standalone?: boolean }) {
   const { t } = useTranslation();
   const info = useSettings((s) => s.info);
   const { models, progress, refresh } = useModels();
+  const [more, setMore] = useState(false);
   const visible = models.filter((m) => !m.hidden || m.installed);
+  // A model the user has, or is getting, stays in view.
+  const main = (m: ModelEntry) => MAIN_MODELS.includes(m.id) || m.installed || m.selected || m.downloading || !!progress[m.id];
+  const others = visible.filter((m) => !main(m));
+  // Opening the rest adds them below, so nothing already in view moves.
+  const shown = more ? [...visible.filter(main), ...others] : visible.filter(main);
 
   const importFile = async (id: string) => {
     const path = await commands.pickModelFile();
@@ -131,9 +140,15 @@ export function ModelManager({ standalone }: { standalone?: boolean }) {
 
   const content = (
     <div className="animate-fade-up space-y-2 px-3 pt-1 pb-4">
-      {visible.map((m) => (
+      {shown.map((m) => (
         <ModelRow key={m.id} m={m} p={progress[m.id]} onChanged={refresh} />
       ))}
+      {!more && others.length > 0 && (
+        <button type="button" onClick={() => setMore(true)} className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-semibold text-muted transition-colors hover:text-fg">
+          <ChevronDown size={13} />
+          {t("moreModels", { n: others.length })}
+        </button>
+      )}
       <details className="px-1 pt-1 text-xs text-muted">
         <summary className="cursor-pointer transition-colors hover:text-fg">{t("importFromFile")}</summary>
         <div className="mt-1.5 flex flex-wrap gap-1.5">

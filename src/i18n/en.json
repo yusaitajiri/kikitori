@@ -231,6 +231,7 @@
   "download": "Download",
   "resumeDownload": "Resume download",
   "use": "Use",
+  "moreModels": "More models ({n})",
   "importFromFile": "Add from file",
   "benchmark": "Speed test",
   "tierComfortable": "Comfortable",

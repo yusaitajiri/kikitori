@@ -231,6 +231,7 @@
   "download": "ダウンロード",
   "resumeDownload": "続きからダウンロード",
   "use": "使う",
+  "moreModels": "ほかのモデル（{n}）",
   "importFromFile": "ファイルから追加",
   "benchmark": "速度テスト",
   "tierComfortable": "快適",
